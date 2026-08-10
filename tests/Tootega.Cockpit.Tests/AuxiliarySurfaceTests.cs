@@ -201,6 +201,62 @@ namespace Tootega.Cockpit.Tests
             Assert.Equal("off", NewBroker().OverridesFor(cwd)["pdf"]);
         }
 
+        // ---- Spelling ----
+
+        /// <summary>
+        /// Whether the shipped dictionaries sit beside the test assembly. They are data files
+        /// from the VSIX, so a bare checkout may not have them.
+        /// </summary>
+        private static bool DictionariesPresent()
+        {
+            foreach (var root in new[]
+            {
+                Path.GetDirectoryName(typeof(SpellingService).Assembly.Location),
+                AppDomain.CurrentDomain.BaseDirectory,
+            })
+            {
+                if (root == null) continue;
+                if (File.Exists(Path.Combine(root, "Dictionaries", "en.dic"))) return true;
+            }
+
+            return false;
+        }
+
+        private SpellingService NewSpelling()
+        {
+            // Its own dictionary folder: a test must never touch the developer's real one.
+            return new SpellingService(new Tootega.Cockpit.Voice.VoiceDictionary(Path.Combine(_root, "voice")),
+                                       new Tootega.Cockpit.Voice.WorkspaceTerms());
+        }
+
+        [SkippableFact]
+        public async System.Threading.Tasks.Task TheCheckerFindsTheShippedDictionariesOnItsOwn()
+        {
+            Skip.IfNot(DictionariesPresent(), "Dictionaries are not present beside the test assembly.");
+
+            // The regression this pins: the service used to pass a folder of its own invention,
+            // which silently produced a checker that flagged every single word.
+            var json = (await NewSpelling().CheckAsync(_root, new[] { "conversation", "qqqzzzwww" })).ToJson();
+
+            Assert.Contains("qqqzzzwww", json);
+            Assert.DoesNotContain("conversation", json);
+        }
+
+        [SkippableFact]
+        public async System.Threading.Tasks.Task ATaughtWordStopsBeingFlaggedAndSurvivesTheService()
+        {
+            Skip.IfNot(DictionariesPresent(), "Dictionaries are not present beside the test assembly.");
+
+            var spelling = NewSpelling();
+            spelling.Add(_root, "Tootega");
+
+            // A new service reads the same per-machine file, so the lesson is not lost on
+            // restart — which is the whole point of an "add to dictionary" button.
+            var json = (await NewSpelling().CheckAsync(_root, new[] { "Tootega" })).ToJson();
+
+            Assert.DoesNotContain("Tootega", json);
+        }
+
         // ---- Usage sources ----
 
         private static LimitWindow Window(double? pct) => new LimitWindow { UsedPct = pct };

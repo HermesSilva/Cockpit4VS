@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Tootega.Cockpit.Protocol;
 using Tootega.Cockpit.Spell;
@@ -47,7 +45,11 @@ namespace Tootega.Cockpit.Host
             if (_speller == null)
             {
                 var dictionary = _dictionary.Load();
-                _speller = new Speller(DictionaryFolder(), dictionary.SpellWords ?? new List<string>());
+
+                // No folder passed: the Speller finds the shipped dictionaries beside its own
+                // assembly, and it already handles the case a test runner creates by
+                // shadow-copying that assembly.
+                _speller = new Speller(null, dictionary.SpellWords ?? new List<string>());
             }
 
             if (!string.Equals(_termsFolder, cwd, StringComparison.OrdinalIgnoreCase))
@@ -63,50 +65,6 @@ namespace Tootega.Cockpit.Host
         {
             var dictionary = _dictionary.Load();
             _speller.SetProjectTerms(_terms.For(cwd).Concat(dictionary.Terms ?? new List<string>()));
-        }
-
-        /// <summary>
-        /// Where the Hunspell dictionaries ship.
-        ///
-        /// Beside the assembly, which is inside the VSIX — and the several candidates matter
-        /// because a test runner shadow-copies the assembly and <c>Location</c> then points at
-        /// a temp folder with no data files next to it.
-        /// </summary>
-        private static string DictionaryFolder()
-        {
-            foreach (var root in ProbeRoots())
-            {
-                if (root == null) continue;
-
-                var candidate = Path.Combine(root, "dict");
-                if (Directory.Exists(candidate)) return candidate;
-            }
-
-            // Returned anyway: the Speller reports a missing dictionary far more clearly than
-            // an exception thrown from here would.
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory ?? ".", "dict");
-        }
-
-        private static IEnumerable<string> ProbeRoots()
-        {
-            var assembly = typeof(SpellingService).Assembly;
-
-            yield return SafeDirectory(() => assembly.Location);
-            yield return SafeDirectory(() => new Uri(assembly.CodeBase).LocalPath);
-            yield return AppDomain.CurrentDomain.BaseDirectory;
-        }
-
-        private static string SafeDirectory(Func<string> path)
-        {
-            try
-            {
-                var value = path();
-                return string.IsNullOrEmpty(value) ? null : Path.GetDirectoryName(value);
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         // ---- Handlers ----
