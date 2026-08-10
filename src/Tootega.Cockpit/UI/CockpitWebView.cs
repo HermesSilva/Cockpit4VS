@@ -115,10 +115,40 @@ namespace Tootega.Cockpit.UI
             }
         }
 
-        /// <summary>host -&gt; webview. <paramref name="json"/> is a serialized HostToWebview message.</summary>
+        /// <summary>
+        /// host -&gt; webview. <paramref name="json"/> is a serialized HostToWebview message.
+        ///
+        /// Callable from any thread, which is the point: the CLI reader threads produce most
+        /// of these, and WebView2 is a WPF control that only its own thread may touch. The
+        /// switch is per-call rather than a queue because the dispatcher already delivers in
+        /// the order it was posted, so a session's stream stays in order.
+        /// </summary>
+        // The switch is unconditional rather than guarded by a thread test: when the caller
+        // is already on the main thread the await completes inline, so a caller that was in
+        // order stays in order, and the method has no thread contract of its own to break.
+        // Neither awaited nor joined, hence the VSSDK007 suppression.
+#pragma warning disable VSSDK007
         public void PostMessage(string json)
         {
             if (_disposed || string.IsNullOrEmpty(json)) return;
+
+            ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                Send(json);
+            }).FileAndForget("tootega/cockpit/postMessage");
+        }
+#pragma warning restore VSSDK007
+
+        /// <summary>
+        /// The actual post. Only ever reached after the switch above, so it does not assert
+        /// the thread: an assertion here would make every caller of the thread-agnostic
+        /// PostMessage inherit a main-thread contract it deliberately does not have.
+        /// </summary>
+        private void Send(string json)
+        {
+            if (_disposed) return;
+
             try
             {
                 if (_web.CoreWebView2 == null) return;

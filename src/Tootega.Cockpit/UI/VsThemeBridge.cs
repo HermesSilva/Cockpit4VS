@@ -116,13 +116,43 @@ namespace Tootega.Cockpit.UI
             Var(sb, "vscode-charts-red", dark ? "#e06c6c" : "#d62728");
             Var(sb, "vscode-charts-yellow", dark ? "#e5c07b" : "#bf8803");
 
+            // --- Scrollbars ---
+            // VS Code's webview host styles these itself; WebView2 does not, so without this
+            // the browser paints its light-scheme scrollbars over a dark tool window. The
+            // colors come from the same keys the IDE's own scrollbars use, so the bar inside
+            // the Cockpit is the bar the user sees everywhere else in Visual Studio.
+            var scrollTrack = Themed(EnvironmentColors.ScrollBarBackgroundColorKey, Css(bg));
+            var scrollThumb = Themed(EnvironmentColors.ScrollBarThumbBackgroundColorKey, Shift(bg, dark ? 0.25 : -0.25));
+            var scrollThumbHover = Themed(EnvironmentColors.ScrollBarThumbMouseOverBackgroundColorKey, scrollThumb);
+            var scrollThumbActive = Themed(EnvironmentColors.ScrollBarThumbPressedBackgroundColorKey, scrollThumb);
+
+            Var(sb, "vscode-scrollbar-shadow", border);
+            Var(sb, "vscode-scrollbarSlider-background", scrollThumb);
+            Var(sb, "vscode-scrollbarSlider-hoverBackground", scrollThumbHover);
+            Var(sb, "vscode-scrollbarSlider-activeBackground", scrollThumbActive);
+
             // --- Typography: follow the VS environment font, not a hardcoded stack ---
             var family = EnvironmentFontFamily();
             sb.AppendLine("  --vscode-font-family: " + family + ";");
             sb.AppendLine("  --vscode-font-size: " + EnvironmentFontSize().ToString(CultureInfo.InvariantCulture) + "px;");
             sb.AppendLine("  --vscode-editor-font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace;");
 
+            // Chromium picks its default scrollbars, form controls and canvas from this, and
+            // it is the one line that keeps a dark tool window from showing light chrome.
+            sb.AppendLine("  color-scheme: " + (dark ? "dark" : "light") + ";");
+
             sb.AppendLine("}");
+
+            // The variables above are what the webview's own stylesheets read; these rules are
+            // for the scrollbars the browser draws, which no stylesheet of ours can reach.
+            sb.AppendLine("::-webkit-scrollbar { width: 14px; height: 14px; }");
+            sb.AppendLine("::-webkit-scrollbar-track { background: " + scrollTrack + "; }");
+            sb.AppendLine("::-webkit-scrollbar-corner { background: " + scrollTrack + "; }");
+            sb.AppendLine("::-webkit-scrollbar-thumb { background: " + scrollThumb +
+                          "; border: 3px solid " + scrollTrack + "; border-radius: 7px; }");
+            sb.AppendLine("::-webkit-scrollbar-thumb:hover { background: " + scrollThumbHover + "; }");
+            sb.AppendLine("::-webkit-scrollbar-thumb:active { background: " + scrollThumbActive + "; }");
+
             return sb.ToString();
         }
 
