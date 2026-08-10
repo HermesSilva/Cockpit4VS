@@ -34,6 +34,10 @@ namespace Tootega.Cockpit.UI
             _view = new CockpitWebView(Mode);
             Content = _view;
 
+            // Registered before the browser is ready: the first message the webview sends is
+            // `init`, and a surface that attached late would miss it and never paint.
+            CockpitPackage.Instance?.Host?.RegisterSurface(_view);
+
             // VSSDK007 wants the JoinableTask awaited or joined; FileAndForget is the
             // vs-threading-sanctioned way to do neither on purpose. Nothing can await this
             // — OnCreate is void and the window must paint before the browser is ready.
@@ -68,6 +72,7 @@ namespace Tootega.Cockpit.UI
         {
             if (disposing)
             {
+                if (_view != null) CockpitPackage.Instance?.Host?.UnregisterSurface(_view);
                 _view?.Dispose();
                 _view = null;
             }

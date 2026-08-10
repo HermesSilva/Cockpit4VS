@@ -30,6 +30,11 @@ namespace Tootega.Cockpit
     {
         internal static CockpitPackage Instance { get; private set; }
 
+        private Host.CockpitHostService _host;
+
+        /// <summary>The orchestration layer. Null until the package has initialized.</summary>
+        internal Host.CockpitHostService Host => _host;
+
         protected override async Task InitializeAsync(
             CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
@@ -41,6 +46,16 @@ namespace Tootega.Cockpit
             var options = (CockpitOptions)GetDialogPage(typeof(CockpitOptions));
             Log.DebugEnabled = options.DebugLog;
             Log.Info("Tootega Cockpit activating…");
+
+            // The orchestration comes up before the commands, so the ones that act on a
+            // conversation are enabled from the first click rather than greyed out until
+            // something else happens to construct it.
+            _host = new Host.CockpitHostService(this, options);
+            CockpitHost.Instance = _host;
+
+            // Resolved once here, on the UI thread, because every session afterwards reads the
+            // cached value from a CLI reader thread.
+            _host.Editor.RefreshWorkspace();
 
             await CockpitCommands.InitializeAsync(this, cancellationToken);
 
