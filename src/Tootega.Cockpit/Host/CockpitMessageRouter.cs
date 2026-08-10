@@ -242,8 +242,18 @@ namespace Tootega.Cockpit.Host
                     _host.LogoutCli();
                     return;
 
+                case WebviewMessageKinds.FetchUsage:
+                    await _host.Usage.SendAsync(tabId);
+                    return;
+
                 case WebviewMessageKinds.EnableUsageTracking:
                     _host.EnableUsageTracking();
+                    // The panel is open and showing the old tracking state.
+                    await _host.Usage.SendAsync(tabId);
+                    return;
+
+                case WebviewMessageKinds.RemoteControl:
+                    _host.Remote.Toggle(tabId, cwd, session, _host.Tabs.Title(tabId));
                     return;
 
                 // --- Editor integration ---
@@ -426,6 +436,7 @@ namespace Tootega.Cockpit.Host
             if (!string.IsNullOrEmpty(draft)) _host.Post(HostMessages.DraftRestore(draft), tabId);
 
             _host.StartCacheKeeper();
+            _host.StartUsage();
             AutoResumeLast(tabId);
 
             await ReportCliAsync();

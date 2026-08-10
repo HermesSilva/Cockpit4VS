@@ -4,9 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using Tootega.Cockpit.Cli;
 using Tootega.Cockpit.Host;
 using Tootega.Cockpit.Protocol;
 using Tootega.Cockpit.Secrets;
+using Tootega.Cockpit.Session;
 using Tootega.Cockpit.Util;
 using Xunit;
 
@@ -154,8 +156,7 @@ namespace Tootega.Cockpit.Tests
             var state = new StateStore(Path.Combine(_root, "state"));
 
             return new ExtensionsBroker(
-                new Tootega.Cockpit.Cli.PluginManager(new Tootega.Cockpit.Cli.AiClient(),
-                                                      Path.Combine(_root, "plugins")),
+                new PluginManager(new AiClient(), Path.Combine(_root, "plugins")),
                 state,
                 () => "claude",
                 (message, tab) => { });
@@ -198,6 +199,86 @@ namespace Tootega.Cockpit.Tests
             NewBroker().SetOverride(cwd, "pdf", "off", null);
 
             Assert.Equal("off", NewBroker().OverridesFor(cwd)["pdf"]);
+        }
+
+        // ---- Usage sources ----
+
+        private static LimitWindow Window(double? pct) => new LimitWindow { UsedPct = pct };
+
+        [Fact]
+        public void TheAccountApiWinsOverEverythingElse()
+        {
+            var api = new ApiUsage { FiveHour = Window(0.42) };
+            var cached = new RealLimits { FiveHour = Window(0.10), AgeMs = 0 };
+            var local = new LocalUsage { FiveHourUsd = 3 };
+
+            var chosen = UsageMonitor.Select(api, cached, local);
+
+            // It is the same source the CLI's own /usage reads, so it matches exactly.
+            Assert.Equal("api", chosen.UsageSource);
+            Assert.Equal(0.42, chosen.Limits.FiveHour.UsedPct);
+        }
+
+        [Fact]
+        public void AFreshStatuslineCacheIsUsedWhenTheApiSaysNothing()
+        {
+            var chosen = UsageMonitor.Select(null, new RealLimits { FiveHour = Window(0.10), AgeMs = 1000 }, null);
+
+            Assert.Equal("statusline", chosen.UsageSource);
+            Assert.Equal("real", chosen.LimitsSource);
+        }
+
+        [Fact]
+        public void AStaleStatuslineCacheIsNotTrusted()
+        {
+            var stale = new RealLimits { FiveHour = Window(0.99), AgeMs = 60 * 60 * 1000 };
+
+            Assert.False(UsageMonitor.Fresh(stale));
+
+            // Showing an hours-old percentage as the current one is the failure this guards.
+            var chosen = UsageMonitor.Select(null, stale, new LocalUsage { FiveHourUsd = 3, FiveHourTokens = 900 });
+
+            Assert.Equal("estimate", chosen.UsageSource);
+            Assert.Null(chosen.Limits.FiveHour.UsedPct);
+        }
+
+        [Fact]
+        public void ACacheWithNoTimestampIsStillBelieved()
+        {
+            // The field postdates some payloads; discarding a real reading over a missing
+            // timestamp would throw away the percentage for nothing.
+            Assert.True(UsageMonitor.Fresh(new RealLimits { SevenDay = Window(0.2) }));
+        }
+
+        [Fact]
+        public void TheLocalEstimateCarriesCostAndTokensButNeverAPercentage()
+        {
+            var local = new LocalUsage
+            {
+                FiveHourUsd = 1.5,
+                FiveHourTokens = 1200,
+                SevenDayUsd = 9,
+                SevenDayTokens = 40_000,
+            };
+
+            var chosen = UsageMonitor.Select(null, null, local);
+
+            Assert.Equal("estimate", chosen.UsageSource);
+            Assert.Equal(1.5, chosen.Limits.FiveHour.Usd);
+            Assert.Equal(40_000, chosen.Limits.SevenDay.Tokens);
+
+            // This machine cannot see the user's other devices, so it does not know the share
+            // of the limit that has been used.
+            Assert.Null(chosen.Limits.FiveHour.UsedPct);
+            Assert.Null(chosen.Limits.SevenDay.UsedPct);
+            Assert.Null(chosen.Scoped);
+        }
+
+        [Fact]
+        public void AnEmptyApiAnswerIsNotASource()
+        {
+            Assert.False(UsageMonitor.Usable(new ApiUsage()));
+            Assert.False(UsageMonitor.Usable(null));
         }
 
         // ---- Vault ----

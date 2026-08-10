@@ -433,6 +433,11 @@ namespace Tootega.Cockpit.Protocol
         public UsageBuckets Buckets { get; set; }
         /// <summary>api | statusline | stream | estimate — where the percentages came from.</summary>
         public string Source { get; set; }
+        /// <summary>
+        /// Why the real source did not answer, when the figures fell back to the local
+        /// estimate. Shown in the panel: dropping to an estimate is never silent.
+        /// </summary>
+        public string SourceError { get; set; }
         /// <summary>Whether the statusline wrapper is installed (captures real rate_limits).</summary>
         public bool TrackingEnabled { get; set; }
         public UsageBreakdown Breakdown { get; set; }

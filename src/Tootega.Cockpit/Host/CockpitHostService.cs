@@ -52,6 +52,8 @@ namespace Tootega.Cockpit.Host
         private readonly VaultBroker _vault;
         private readonly ConversationExporter _exporter;
         private readonly DiffLauncher _diff;
+        private readonly UsageMonitor _usage;
+        private readonly RemoteControlBroker _remote;
 
         private CacheKeeper _cacheKeeper;
         private bool _disposed;
@@ -90,6 +92,11 @@ namespace Tootega.Cockpit.Host
             _exporter = new ConversationExporter(_editor, () => _engines.PathFor(EngineIds.Claude));
             _diff = new DiffLauncher();
 
+            _usage = new UsageMonitor(_state, () => _engines.PathFor(EngineIds.Claude),
+                                      () => _tabs.Entries, Post);
+            _remote = new RemoteControlBroker(_editor, () => _engines.PathFor(EngineIds.Claude),
+                                              tabId => ReplayTab(tabId, force: true), Post);
+
             _router = new CockpitMessageRouter(this);
             _surfaces.MessageReceived += OnSurfaceMessage;
         }
@@ -113,6 +120,8 @@ namespace Tootega.Cockpit.Host
         internal VaultBroker Vault => _vault;
         internal ConversationExporter Exporter => _exporter;
         internal DiffLauncher Diff => _diff;
+        internal UsageMonitor Usage => _usage;
+        internal RemoteControlBroker Remote => _remote;
 
         /// <summary>
         /// The vault, or null when this machine has no usable credential store.
@@ -198,7 +207,12 @@ namespace Tootega.Cockpit.Host
                         ReplayTab(tabId, force: true);
                 },
 
-                OnResult = () => SendSessions(tabId),
+                OnResult = () =>
+                {
+                    SendSessions(tabId);
+                    // A turn just spent tokens, so the limits the panels show are now behind.
+                    RefreshUsageAfterTurn();
+                },
 
                 // A permission prompt or a question is waiting: the conversation has to be
                 // visible, or the user is blocked by something they cannot see.
@@ -440,6 +454,25 @@ namespace Tootega.Cockpit.Host
         }
 
         /// <summary>
+        /// Starts the background work the first panel needs: the usage refresh, and the
+        /// telemetry receiver when the user has opted in.
+        /// </summary>
+        internal void StartUsage()
+        {
+            _usage.Start();
+            if (_settings.OtelEnabled) _usage.StartTelemetry();
+        }
+
+        /// <summary>Refreshes the account's limits at the end of a turn.</summary>
+        internal void RefreshUsageAfterTurn()
+        {
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(() => _usage.RefreshAsync(false))
+                .FileAndForget("tootega/cockpit/refreshUsage");
+#pragma warning restore VSSDK007
+        }
+
+        /// <summary>
         /// Renews an OPEN conversation through its own live process, rather than a parallel
         /// --resume that would put two processes on one transcript.
         /// </summary>
@@ -606,6 +639,8 @@ namespace Tootega.Cockpit.Host
             _cacheKeeper?.Dispose();
             // The microphone first: an ffmpeg left running would outlive the IDE.
             _dictation.Dispose();
+            _usage.Dispose();
+            _remote.Dispose();
             _diff.Cleanup();
             _tabs.Dispose();
             _taskTimings.Dispose();
