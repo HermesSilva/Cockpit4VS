@@ -315,6 +315,53 @@ namespace Tootega.Cockpit.Host
         }
 
         /// <summary>
+        /// Asks the user where to save a file, using the shell's own dialog.
+        ///
+        /// Returns null when they cancel.
+        /// </summary>
+        /// <param name="filter">
+        /// In the Win32 form the shell expects — label, NUL, pattern, NUL, and a final NUL.
+        /// </param>
+        public string PickSaveFile(string initialDirectory, string defaultName, string filter, string title)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            var shell = _services.GetService(typeof(SVsUIShell)) as IVsUIShell;
+            if (shell == null) return null;
+
+            // Pre-filled with the suggested name, which is how the dialog reports it back too.
+            var buffer = Marshal.StringToCoTaskMemUni((defaultName ?? string.Empty).PadRight((int)MaxPath, '\0'));
+
+            try
+            {
+                var save = new VSSAVEFILENAMEW[1];
+                save[0].lStructSize = (uint)Marshal.SizeOf(typeof(VSSAVEFILENAMEW));
+                save[0].pwzDlgTitle = title;
+                save[0].pwzFileName = buffer;
+                save[0].nMaxFileName = MaxPath;
+                save[0].pwzInitialDir = Directory.Exists(initialDirectory) ? initialDirectory : null;
+                save[0].pwzFilter = filter;
+
+                var hr = shell.GetSaveFileNameViaDlg(save);
+
+                if (hr == VSConstants.OLE_E_PROMPTSAVECANCELLED) return null;
+                if (Microsoft.VisualStudio.ErrorHandler.Failed(hr)) return null;
+
+                var picked = Marshal.PtrToStringUni(save[0].pwzFileName);
+                return string.IsNullOrWhiteSpace(picked) ? null : picked;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("editor: the save dialog failed", ex);
+                return null;
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(buffer);
+            }
+        }
+
+        /// <summary>
         /// The folders worth offering as one click: the solution's, and each project's.
         ///
         /// Most of the time the folder a user wants for a second tab is a project inside the

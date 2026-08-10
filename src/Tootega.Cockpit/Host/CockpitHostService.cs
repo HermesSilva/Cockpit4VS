@@ -6,11 +6,13 @@ using Microsoft.VisualStudio.Threading;
 using Tootega.Cockpit.Cli;
 using Tootega.Cockpit.Options;
 using Tootega.Cockpit.Protocol;
+using Tootega.Cockpit.Secrets;
 using Tootega.Cockpit.Session;
 using Tootega.Cockpit.Settings;
 using Tootega.Cockpit.Stats;
 using Tootega.Cockpit.UI;
 using Tootega.Cockpit.Util;
+using Tootega.Cockpit.Voice;
 using CockpitSession = Tootega.Cockpit.Session.Session;
 
 namespace Tootega.Cockpit.Host
@@ -42,6 +44,15 @@ namespace Tootega.Cockpit.Host
         private readonly CliStatusReporter _cliStatus;
         private readonly CockpitMessageRouter _router;
 
+        // The auxiliary surfaces. Each owns one panel's worth of behaviour, and the router only
+        // decides which of them a message belongs to.
+        private readonly SpellingService _spelling;
+        private readonly DictationService _dictation;
+        private readonly ExtensionsBroker _extensions;
+        private readonly VaultBroker _vault;
+        private readonly ConversationExporter _exporter;
+        private readonly DiffLauncher _diff;
+
         private CacheKeeper _cacheKeeper;
         private bool _disposed;
 
@@ -65,6 +76,20 @@ namespace Tootega.Cockpit.Host
             _tabs = new TabRegistry(CreateSession, () => _editor.WorkspaceCwd());
             _tabs.Changed += (s, e) => PostTabs();
 
+            var dictionary = new VoiceDictionary();
+            var terms = new WorkspaceTerms();
+            var ai = new AiClient();
+            ai.SetInternalModel(_settings.InternalModel);
+
+            _spelling = new SpellingService(dictionary, terms);
+            _dictation = new DictationService(_settings, dictionary, terms, _spelling,
+                                              new TextCorrector(ai), Post);
+            _extensions = new ExtensionsBroker(new PluginManager(ai), _state,
+                                               () => _engines.PathFor(EngineIds.Claude), Post);
+            _vault = new VaultBroker(CreateVault(), Post);
+            _exporter = new ConversationExporter(_editor, () => _engines.PathFor(EngineIds.Claude));
+            _diff = new DiffLauncher();
+
             _router = new CockpitMessageRouter(this);
             _surfaces.MessageReceived += OnSurfaceMessage;
         }
@@ -81,6 +106,32 @@ namespace Tootega.Cockpit.Host
         internal TaskTimings Timings => _taskTimings;
         internal StatsStore StatsStore => _statsStore;
         internal CockpitPackage Package => _package;
+
+        internal SpellingService Spelling => _spelling;
+        internal DictationService Dictation => _dictation;
+        internal ExtensionsBroker Extensions => _extensions;
+        internal VaultBroker Vault => _vault;
+        internal ConversationExporter Exporter => _exporter;
+        internal DiffLauncher Diff => _diff;
+
+        /// <summary>
+        /// The vault, or null when this machine has no usable credential store.
+        ///
+        /// Null rather than a throwing stub: the modal has a message for "unavailable", and a
+        /// vault that pretends to work would be the one failure that loses a secret.
+        /// </summary>
+        private static CredentialsStore CreateVault()
+        {
+            try
+            {
+                return new CredentialsStore(new WindowsSecretStorage());
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("vault: unavailable: " + ex.Message);
+                return null;
+            }
+        }
 
         /// <summary>A model/effort/permission change waiting for the next send to take effect.</summary>
         internal bool PendingRestart { get; set; }
@@ -209,7 +260,16 @@ namespace Tootega.Cockpit.Host
                 ExtraSystemPrompt = () => ExtraSystemPrompt(tabId),
             };
 
-            return new CockpitSession(hooks, _statsStore, _skillIndex);
+            var session = new CockpitSession(hooks, _statsStore, _skillIndex);
+
+            // The folder's skill overrides apply from the first spawn: they are start-up
+            // arguments, so a session built without them would list skills the user turned off.
+            foreach (var pair in _extensions.OverridesFor(_tabs.Cwd(tabId)))
+            {
+                session.SkillOverrides[pair.Key] = pair.Value;
+            }
+
+            return session;
         }
 
         /// <summary>
@@ -353,6 +413,21 @@ namespace Tootega.Cockpit.Host
                 entry.Value.ClearConversation();
                 _tabs.SetTitle(entry.Key, null);
                 Post(HostMessages.History(new List<HistoryItem>()), entry.Key);
+            }
+        }
+
+        /// <summary>
+        /// The live sessions of one folder.
+        ///
+        /// Anything scoped to a folder — a skill override, a deleted transcript — has to reach
+        /// exactly these and no others.
+        /// </summary>
+        internal IEnumerable<CockpitSession> SessionsOn(string cwd)
+        {
+            foreach (var entry in _tabs.Entries)
+            {
+                if (string.Equals(_tabs.Cwd(entry.Key), cwd, StringComparison.OrdinalIgnoreCase))
+                    yield return entry.Value;
             }
         }
 
@@ -529,6 +604,9 @@ namespace Tootega.Cockpit.Host
             _surfaces.MessageReceived -= OnSurfaceMessage;
 
             _cacheKeeper?.Dispose();
+            // The microphone first: an ffmpeg left running would outlive the IDE.
+            _dictation.Dispose();
+            _diff.Cleanup();
             _tabs.Dispose();
             _taskTimings.Dispose();
             // Pending statistics are cheap to write and gone otherwise.

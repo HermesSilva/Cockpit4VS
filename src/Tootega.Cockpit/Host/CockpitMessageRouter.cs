@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
@@ -297,6 +298,108 @@ namespace Tootega.Cockpit.Host
                     return;
                 }
 
+                // --- Rewind ---
+
+                case WebviewMessageKinds.Rewind:
+                    Rewind(tabId, session, cwd, message.GetInt("index"));
+                    return;
+
+                // --- Spell checker ---
+
+                case WebviewMessageKinds.SpellCheck:
+                    _host.Post(await _host.Spelling.CheckAsync(cwd, message.GetStringList("words")), tabId);
+                    return;
+
+                case WebviewMessageKinds.SpellSuggest:
+                    _host.Post(await _host.Spelling.SuggestAsync(cwd, message.GetString("requestId"),
+                                                                 message.GetString("word")), tabId);
+                    return;
+
+                case WebviewMessageKinds.SpellAdd:
+                    _host.Spelling.Add(cwd, message.GetString("word"));
+                    return;
+
+                // --- Dictation ---
+
+                case WebviewMessageKinds.VoiceStart:
+                    await _host.Dictation.StartAsync(tabId, cwd, message.GetString("language"));
+                    return;
+
+                case WebviewMessageKinds.VoiceStop:
+                    _host.Dictation.Stop();
+                    return;
+
+                case WebviewMessageKinds.VoiceCorrect:
+                    await _host.Dictation.CorrectAsync(tabId, message.GetString("text"));
+                    return;
+
+                case WebviewMessageKinds.VoiceDictGet:
+                    _host.Dictation.Send(tabId, cwd);
+                    return;
+
+                case WebviewMessageKinds.VoiceDictSave:
+                    _host.Dictation.Save(tabId, cwd, message.As<VoiceDictSavePayload>()?.Data);
+                    return;
+
+                // --- Plugins, MCP and skills ---
+
+                case WebviewMessageKinds.PluginsRefresh:
+                    await _host.Extensions.SendPluginsAsync(tabId, message.GetBool("force"));
+                    return;
+
+                case WebviewMessageKinds.PluginAction:
+                {
+                    var payload = message.As<PluginActionPayload>();
+                    await _host.Extensions.RunPluginActionAsync(tabId, payload.Action, payload.Arg, payload.Scope);
+                    return;
+                }
+
+                case WebviewMessageKinds.McpRefresh:
+                    await _host.Extensions.SendMcpAsync(tabId, session);
+                    return;
+
+                case WebviewMessageKinds.SkillsRefresh:
+                    await _host.Extensions.SendSkillsAsync(tabId, session);
+                    return;
+
+                case WebviewMessageKinds.SkillOverrideSet:
+                    // Only the sessions of THIS folder: `.claude/skills/` belongs to the
+                    // project, so the override must not follow the user into another one.
+                    _host.Extensions.SetOverride(cwd, message.GetString("name"), message.GetString("value"),
+                                                 _host.SessionsOn(cwd));
+                    MarkPendingRestart();
+                    return;
+
+                // --- Export and images ---
+
+                case WebviewMessageKinds.ExportMd:
+                {
+                    var payload = message.As<ExportMdPayload>();
+                    await _host.Exporter.ExportAsync(cwd, payload.Markdown, payload.FileName, payload.Mode,
+                                                     session.Model(), session.Effort());
+                    return;
+                }
+
+                case WebviewMessageKinds.SaveImage:
+                    _host.Exporter.SaveImage(cwd, message.GetString("mediaType"), message.GetString("data"));
+                    return;
+
+                case WebviewMessageKinds.OpenDiff:
+                    _host.Diff.Open(cwd, message.GetString("tool"), message.GetElement("input"));
+                    return;
+
+                // --- Credentials vault ---
+
+                case WebviewMessageKinds.CredsLoad:
+                case WebviewMessageKinds.CredsEnrollBegin:
+                case WebviewMessageKinds.CredsEnrollConfirm:
+                case WebviewMessageKinds.CredsAdd:
+                case WebviewMessageKinds.CredsEdit:
+                case WebviewMessageKinds.CredsUse:
+                case WebviewMessageKinds.CredsDelete:
+                    _host.Vault.Handle(tabId, message);
+                    return;
+
                 default:
                     // Not wired yet. Logged rather than silently dropped, so a missing surface
                     // shows up in the output pane instead of looking like a dead button.
@@ -395,6 +498,44 @@ namespace Tootega.Cockpit.Host
 
             session.Send(body, payload?.Images);
             _host.Tabs.ClearDraft(tabId);
+        }
+
+        /// <summary>
+        /// Rewinds the conversation to the given user prompt, dropping it and everything after.
+        ///
+        /// The index counts the user's prompts as the timeline shows them, and it is resolved
+        /// against the transcript rather than trusted: the webview's list can be a repaint
+        /// behind, and cutting at the wrong prompt would destroy work irreversibly.
+        /// </summary>
+        private void Rewind(string tabId, CockpitSession session, string cwd, int index)
+        {
+            // Never mid-turn: the CLI is still appending to the very file we would cut.
+            if (session.Busy) return;
+
+            var sessionId = session.SessionId ?? session.ResumeId;
+            if (sessionId == null) return;
+
+            var prompts = _host.Library.Transcript(cwd, sessionId)
+                .Where(item => item.Kind == "user")
+                .ToList();
+
+            if (index < 0 || index >= prompts.Count) return;
+
+            var target = prompts[index];
+
+            if (!_host.Library.Rewind(cwd, sessionId, target.Id))
+            {
+                Log.Debug("rewind: prompt #" + index + " was not found in the transcript");
+                return;
+            }
+
+            // Re-armed against the truncated file: the next message continues from that point.
+            session.Resume(sessionId);
+            _host.ReplayTab(tabId, force: true);
+            _host.PostTabs();
+            _host.SendSessions(tabId);
+
+            Log.Info("Conversation rewound to prompt #" + index + ".");
         }
 
         private void MarkPendingRestart()
