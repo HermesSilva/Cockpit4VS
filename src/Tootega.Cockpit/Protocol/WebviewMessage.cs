@@ -129,7 +129,6 @@ namespace Tootega.Cockpit.Protocol
         public const string SetPermissionMode = "setPermissionMode";
         public const string SetEngine = "setEngine";
         public const string SetAllowAgents = "setAllowAgents";
-        public const string SetLocale = "setLocale";
         public const string SetKeepCacheAlive = "setKeepCacheAlive";
 
         // Sessions

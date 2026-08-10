@@ -19,3 +19,9 @@ packages/
 
 # Generated design-review artifact (scripts/preview-icons.ps1)
 scripts/icon-preview.png
+
+# Webview build output. Produced by webview/esbuild.mjs into the VSIX content folder;
+# index.html beside it IS source and stays tracked.
+src/Tootega.Cockpit/WebView/main.js
+src/Tootega.Cockpit/WebView/main.css
+src/Tootega.Cockpit/WebView/*.map

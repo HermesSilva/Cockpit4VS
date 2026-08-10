@@ -116,6 +116,16 @@ F5 launches the experimental instance (`devenv /rootsuffix Exp`).
 The test project declares `System.Text.Json` itself, because the extension excludes it at
 runtime (the IDE provides it) and tests run outside devenv.
 
+The webview is built automatically by the `BuildWebView` target (esbuild), so the bundle
+can never be stale relative to its sources. It is skipped when node is missing — a
+C#-only contributor needs no JavaScript toolchain — and only fails when there is no
+bundle at all.
+
+**The bundle is added to the VSIX from inside that target, not by a glob.** A glob is
+evaluated before any target runs, so on a clean build it would match nothing and the VSIX
+would silently ship a tool window that loads nothing. If you add generated content, add it
+the same way.
+
 The build must stay at **zero warnings**. The VSSDK and vs-threading analyzers catch real
 in-proc bugs; suppress one only with a `#pragma` and a comment saying why.
 

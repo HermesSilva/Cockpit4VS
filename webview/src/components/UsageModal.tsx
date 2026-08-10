@@ -1,0 +1,559 @@
+import { useEffect } from 'react';
+import { Portal } from './Portal';
+import type { Translator } from '../strings';
+import type {
+  UsageData,
+  UsageBucket,
+  UsageSlice,
+  UsageAttribution,
+  OtelStats,
+  TokenTotals,
+} from '../../../shared/protocol';
+import { fmtUsdShort, fmtCompact, fmtInt } from '../util/format';
+
+interface Props {
+  t: Translator;
+  locale: string;
+  usage: UsageData | null; // null = carregando (dado quente em busca)
+  onClose: () => void;
+  onManage: () => void;
+  onEnableTracking: () => void;
+}
+
+// Session kind reported by the CLI (2.1.221). An unknown value is shown as it came — the
+// engine may add kinds we don't know about yet.
+function sessionKindLabel(t: Translator, kind: string): string {
+  if (kind === 'interactive') return t('usage.sessionKind.interactive');
+  if (kind === 'attached') return t('usage.sessionKind.attached');
+  if (kind === 'unattended') return t('usage.sessionKind.unattended');
+  return kind;
+}
+
+// "Account & Usage" modal (Usage button). It reproduces the CLI's /usage: exact account
+// (auth status) + janelas de limite reais (API OAuth, read-only).
+export function UsageModal({ t, locale, usage, onClose, onManage, onEnableTracking }: Props) {
+  const live = !!usage && usage.source !== 'estimate';
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <Portal>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal usage" onClick={(e) => e.stopPropagation()}>
+          <div className="usage-head">
+            <span className="modal-title">{t('usage.title')}</span>
+            <button type="button" className="usage-close" title={t('common.close')} onClick={onClose}>
+              ✕
+            </button>
+          </div>
+
+          {!usage ? (
+            <div className="usage-loading">
+              <span className="usage-spinner" aria-hidden="true" />
+              <span>{t('usage.loading')}</span>
+            </div>
+          ) : (
+            <div className="usage-body">
+              {/* ACCOUNT */}
+              <div className="usage-section-label">{t('usage.account')}</div>
+              {usage.account.loggedIn ? (
+                <div className="usage-rows">
+                  <Row k={t('usage.authMethod')} v={authLabel(usage.account.authMethod)} />
+                  {usage.account.email && <Row k={t('usage.email')} v={usage.account.email} />}
+                  {usage.account.orgName && <Row k={t('usage.org')} v={usage.account.orgName} />}
+                  {usage.account.plan && <Row k={t('usage.plan')} v={planLabel(usage.account.plan)} accent />}
+                  {usage.account.loginExpiresAt && (
+                    <Row
+                      k={t('usage.loginExpires')}
+                      v={relExpiry(usage.account.loginExpiresAt, locale)}
+                      accent={expiringSoon(usage.account.loginExpiresAt)}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="usage-muted">{t('usage.notLoggedIn')}</div>
+              )}
+              {usage.account.loggedIn && expiringSoon(usage.account.loginExpiresAt) && (
+                <div className="usage-alert">
+                  {t('usage.loginExpiringSoon', relExpiry(usage.account.loginExpiresAt!, locale))}
+                </div>
+              )}
+
+              {/* SESSION FLAGS (statusline): fast mode, model label, effort, output style.
+                  Provenance is the user's statusline session, not the Cockpit's headless run. */}
+              {usage.account.session && (
+                <>
+                  <div className="usage-section-label">
+                    {t('usage.session')}
+                    <span className="usage-badge est">{t('usage.session.src')}</span>
+                  </div>
+                  <div className={`usage-rows${usage.account.session.stale ? ' usage-dim' : ''}`}>
+                    {usage.account.session.fastMode != null && (
+                      <Row
+                        k={t('usage.fastMode')}
+                        v={usage.account.session.fastMode ? t('common.on') : t('common.off')}
+                        accent={usage.account.session.fastMode}
+                      />
+                    )}
+                    {usage.account.session.modelDisplay && (
+                      <Row k={t('usage.modelLabel')} v={usage.account.session.modelDisplay} />
+                    )}
+                    {usage.account.session.effort && (
+                      <Row k={t('usage.effortLevel')} v={usage.account.session.effort} />
+                    )}
+                    {usage.account.session.outputStyle && (
+                      <Row k={t('usage.outputStyle')} v={usage.account.session.outputStyle} />
+                    )}
+                    {/* interactive | attached | unattended — informado a partir da CLI 2.1.221. */}
+                    {usage.account.session.kind && (
+                      <Row k={t('usage.sessionKind')} v={sessionKindLabel(t, usage.account.session.kind)} />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* USAGE WINDOWS */}
+              <div className="usage-section-label">
+                {t('usage.usage')}
+                <span className={`usage-badge ${live ? 'live' : 'est'}`}>
+                  {live ? t('usage.badge.live') : t('usage.badge.est')}
+                </span>
+              </div>
+              <Meter t={t} locale={locale} label={t('usage.currentSession')} tone="warm" live={live} b={usage.buckets.fiveHour} />
+              <Meter t={t} locale={locale} label={t('usage.weeklyAll')} tone="cool" live={live} b={usage.buckets.sevenDay} />
+              {usage.buckets.weeklyScoped?.map((b) => (
+                <Meter key={b.label} t={t} locale={locale} label={t('usage.weeklyModel', b.label)} tone="cool" live={live} b={b} />
+              ))}
+              {!live && (
+                <div className="usage-est-note">
+                  <span>{t(usage.trackingEnabled ? 'usage.est.waiting' : 'usage.est.note')}</span>
+                  {/* Why the real source (OAuth API) didn't answer — technical code, not prose. */}
+                  {usage.sourceError && (
+                    <span className="usage-muted">{t('usage.est.reason', usage.sourceError)}</span>
+                  )}
+                  {!usage.trackingEnabled && (
+                    <button type="button" className="usage-cta" onClick={onEnableTracking}>
+                      {t('usage.enableTracking')}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* DETALHAMENTO LOCAL 7d (por modelo / origem) — estimativa de tabela */}
+              {usage.breakdown && (usage.breakdown.byModel.length > 0 || usage.breakdown.bySource.length > 0) && (
+                <Breakdown t={t} b={usage.breakdown} />
+              )}
+
+              {/* ATRIBUIÇÃO 7d: long context, subagentes, cache, tools/MCP */}
+              {usage.attribution && <Attribution t={t} locale={locale} a={usage.attribution} />}
+
+              {/* CONTADOR GLOBAL DE TOKENS (enviado/recebido/total) por dia */}
+              {usage.tokens && usage.tokens.total > 0 && (
+                <Tokens t={t} locale={locale} tk={usage.tokens} />
+              )}
+
+              {/* TELEMETRIA OTEL (opt-in) */}
+              {usage.otel?.enabled && <Otel t={t} locale={locale} o={usage.otel} />}
+
+              <button type="button" className="usage-link" onClick={onManage}>
+                {t('usage.manage')}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+// Etiqueta curta de modelo (claude-opus-4-8[1m] -> "opus 4.8 1M").
+function modelLabel(id: string): string {
+  if (id === 'unknown') return id;
+  const oneM = /\[1m\]/i.test(id);
+  const core = id.replace(/^claude-/i, '').replace(/\[1m\]/i, '');
+  const m = core.match(/^(opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d+))?$/i);
+  let s = core;
+  if (m) s = `${m[1]} ${m[3] ? `${m[2]}.${m[3]}` : m[2]}`;
+  return oneM ? `${s} 1M` : s;
+}
+
+// Proportional bar of a slice (USD) within the category total.
+function SliceRow({
+  t,
+  label,
+  usd,
+  tokens,
+  cacheRead,
+  frac,
+}: {
+  t: Translator;
+  label: string;
+  usd: number;
+  tokens: number;
+  cacheRead: number;
+  frac: number;
+}) {
+  return (
+    <div className="usage-slice">
+      <div className="usage-slice-head">
+        <span className="usage-slice-label">{label}</span>
+        <span className="usage-slice-val">
+          {fmtUsdShort(usd)}
+          <span className="usage-muted"> · {t('usage.slice.newTokens', fmtCompact(tokens))}</span>
+        </span>
+      </div>
+      <div className="usage-bar">
+        <span className="usage-bar-fill warm" style={{ width: `${Math.max(2, frac * 100)}%` }} />
+      </div>
+      {cacheRead > 0 && (
+        <div className="usage-slice-sub usage-muted">
+          {t('usage.slice.cacheRead', fmtCompact(cacheRead))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Detalhamento local da janela de 7d: por modelo e por origem (main/subagent).
+// Sempre estimativa de tabela (badge "≈"), independente do % real da conta.
+function Breakdown({ t, b }: { t: Translator; b: { byModel: UsageSlice[]; bySource: UsageSlice[] } }) {
+  const totalModel = b.byModel.reduce((s, x) => s + x.usd, 0) || 1;
+  const totalSrc = b.bySource.reduce((s, x) => s + x.usd, 0) || 1;
+  return (
+    <>
+      <div className="usage-section-label">
+        {t('usage.breakdown')}
+        <span className="usage-badge est">{t('usage.badge.est')}</span>
+      </div>
+      <div className="usage-sub-label">{t('usage.breakdown.byModel')}</div>
+      {b.byModel.map((s) => (
+        <SliceRow
+          key={s.key}
+          t={t}
+          label={modelLabel(s.key)}
+          usd={s.usd}
+          tokens={s.tokens}
+          cacheRead={s.cacheRead}
+          frac={s.usd / totalModel}
+        />
+      ))}
+      {b.bySource.length > 1 && (
+        <>
+          <div className="usage-sub-label">{t('usage.breakdown.bySource')}</div>
+          {b.bySource.map((s) => (
+            <SliceRow
+              key={s.key}
+              t={t}
+              label={t(s.key === 'subagent' ? 'usage.source.subagent' : 'usage.source.main')}
+              usd={s.usd}
+              tokens={s.tokens}
+              cacheRead={s.cacheRead}
+              frac={s.usd / totalSrc}
+            />
+          ))}
+        </>
+      )}
+      <div className="usage-muted usage-breakdown-note">{t('usage.breakdown.note')}</div>
+    </>
+  );
+}
+
+// Readable label for a tool bucket: "mcp:dase" -> "MCP · dase".
+function toolLabel(key: string): string {
+  if (key.startsWith('mcp:')) return `MCP · ${key.slice(4)}`;
+  if (key.startsWith('skill:')) return `Skill · ${key.slice(6)}`;
+  return key;
+}
+
+// One insight: a title with the number highlighted + an explanation of what to do with it.
+function Insight({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="usage-insight">
+      <div className="usage-insight-title">{title}</div>
+      <div className="usage-muted usage-insight-desc">{desc}</div>
+    </div>
+  );
+}
+
+// 7d attribution: answers "where did my tokens go". Percentages over the window's
+// NEW tokens. The per-tool context is estimated from the tool_results.
+function Attribution({ t, locale, a }: { t: Translator; locale: string; a: UsageAttribution }) {
+  const pct = (v: number) => Math.round(v * 100);
+  const top = a.byTool.slice(0, 6);
+  const maxTok = top.reduce((m, s) => Math.max(m, s.tokens), 0) || 1;
+  const hasInsight = a.longContextPct > 0 || a.subagentPct > 0 || a.cacheHitPct != null;
+  if (!hasInsight && top.length === 0) return null;
+  return (
+    <>
+      <div className="usage-section-label">
+        {t('usage.attribution')}
+        <span className="usage-badge est">{t('usage.badge.est')}</span>
+      </div>
+      {a.longContextPct > 0 && (
+        <Insight
+          title={t('usage.i.context', pct(a.longContextPct))}
+          desc={t('usage.i.context.desc')}
+        />
+      )}
+      {a.subagentPct > 0 && (
+        <Insight
+          title={t('usage.i.subagents', pct(a.subagentPct))}
+          desc={t('usage.i.subagents.desc')}
+        />
+      )}
+      {a.cacheHitPct != null && (
+        <Insight title={t('usage.i.cache', pct(a.cacheHitPct))} desc={t('usage.i.cache.desc')} />
+      )}
+      {top.length > 0 && (
+        <>
+          <div className="usage-sub-label">{t('usage.attr.byTool')}</div>
+          {top.map((s) => (
+            <div key={s.key} className="usage-slice">
+              <div className="usage-slice-head">
+                <span className="usage-slice-label">{toolLabel(s.key)}</span>
+                <span className="usage-slice-val usage-muted">
+                  {t('usage.attr.tool.calls', fmtInt(s.calls, locale), fmtCompact(s.tokens))}
+                </span>
+              </div>
+              <div className="usage-bar">
+                <span
+                  className="usage-bar-fill cool"
+                  style={{ width: `${Math.max(2, (s.tokens / maxTok) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+          <div className="usage-muted usage-breakdown-note">{t('usage.attr.note')}</div>
+        </>
+      )}
+    </>
+  );
+}
+
+// Contador GLOBAL de tokens (enviado/recebido/total), all-time + por dia. Fonte:
+// local transcripts — the sum of every context and VSCode window on the machine.
+function Tokens({ t, locale, tk }: { t: Translator; locale: string; tk: TokenTotals }) {
+  const max = tk.days.reduce((m, d) => Math.max(m, d.sent + d.received), 0) || 1;
+  return (
+    <>
+      <div className="usage-section-label">
+        {t('usage.tokens')}
+        <span className="usage-badge live">{t('usage.tokens.badge')}</span>
+      </div>
+      <div className="usage-rows">
+        <Row k={t('usage.tokens.sent')} v={fmtInt(tk.sent, locale)} />
+        <Row k={t('usage.tokens.received')} v={fmtInt(tk.received, locale)} />
+        <Row k={t('usage.tokens.total')} v={fmtInt(tk.total, locale)} accent />
+      </div>
+      {tk.days.length > 0 && (
+        <>
+          <div className="usage-sub-label">{t('usage.tokens.byDay')}</div>
+          {tk.days.map((d) => (
+            <div className="usage-slice" key={d.date}>
+              <div className="usage-slice-head">
+                <span className="usage-slice-label">{fmtDay(d.date, locale)}</span>
+                <span className="usage-slice-val">
+                  {fmtCompact(d.sent + d.received)}
+                  <span className="usage-muted">
+                    {' '}
+                    ↑{fmtCompact(d.sent)} ↓{fmtCompact(d.received)}
+                  </span>
+                </span>
+              </div>
+              <div className="usage-bar">
+                <span
+                  className="usage-bar-fill cool"
+                  style={{ width: `${Math.max(2, ((d.sent + d.received) / max) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+      <div className="usage-muted usage-breakdown-note">{t('usage.tokens.note')}</div>
+    </>
+  );
+}
+
+// "2026-06-30" -> short localized label (e.g. "30 Jun"). Today becomes "Today".
+function fmtDay(iso: string, locale: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+  const now = new Date();
+  const sameDay = dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth() && dt.getDate() === now.getDate();
+  if (sameDay) return locale.startsWith('pt') ? 'Hoje' : 'Today';
+  try {
+    return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' }).format(dt);
+  } catch {
+    return iso;
+  }
+}
+
+// OTEL telemetry (opt-in): LOC per model, sessions, commits, PRs, decisions.
+function Otel({ t, locale, o }: { t: Translator; locale: string; o: OtelStats }) {
+  return (
+    <>
+      <div className="usage-section-label">
+        {t('usage.otel')}
+        <span className="usage-badge live">{t('usage.otel.live')}</span>
+      </div>
+      {o.costByModel && o.costByModel.length > 0 && (
+        <>
+          <div className="usage-sub-label">{t('usage.otel.costByModel')}</div>
+          {o.costByModel.map((s) => (
+            <SliceRow
+              key={s.key}
+              t={t}
+              label={modelLabel(s.key)}
+              usd={s.usd}
+              tokens={s.tokens}
+              cacheRead={s.cacheRead}
+              frac={s.usd / (o.costByModel!.reduce((a, x) => a + x.usd, 0) || 1)}
+            />
+          ))}
+        </>
+      )}
+      <div className="usage-rows">
+        {(o.linesAdded != null || o.linesRemoved != null) && (
+          <Row
+            k={t('usage.otel.loc')}
+            v={`+${fmtInt(o.linesAdded ?? 0, locale)} / −${fmtInt(o.linesRemoved ?? 0, locale)}`}
+            accent
+          />
+        )}
+        {o.sessionCount != null && <Row k={t('usage.otel.sessions')} v={fmtInt(o.sessionCount, locale)} />}
+        {o.commitCount != null && <Row k={t('usage.otel.commits')} v={fmtInt(o.commitCount, locale)} />}
+        {o.prCount != null && <Row k={t('usage.otel.prs')} v={fmtInt(o.prCount, locale)} />}
+      </div>
+      {o.locByModel && o.locByModel.length > 0 && (
+        <>
+          <div className="usage-sub-label">{t('usage.otel.locByModel')}</div>
+          {o.locByModel.map((s) => (
+            <Row key={s.key} k={modelLabel(s.key)} v={`${fmtInt(s.tokens, locale)} ${t('usage.otel.lines')}`} />
+          ))}
+        </>
+      )}
+      {o.workflows && o.workflows.length > 0 && (
+        <>
+          <div className="usage-sub-label">{t('usage.otel.workflows')}</div>
+          {o.workflows.map((w) => (
+            <Row
+              key={w.runId}
+              k={w.effort ? `${w.name} · ${w.effort}` : w.name}
+              v={`${fmtUsdShort(w.usd)} · ${fmtCompact(w.tokens)} tok`}
+            />
+          ))}
+        </>
+      )}
+      {o.toolDecisions && o.toolDecisions.length > 0 && (
+        <>
+          <div className="usage-sub-label">{t('usage.otel.decisions')}</div>
+          {o.toolDecisions.map((d) => (
+            <Row key={d.tool} k={d.tool} v={`✓ ${d.accept} · ✕ ${d.reject}`} />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+function Row({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
+  return (
+    <div className="usage-row">
+      <span className="usage-row-k">{k}</span>
+      <span className={`usage-row-v ${accent ? 'accent' : ''}`}>{v}</span>
+    </div>
+  );
+}
+
+// Bar of a limit window (session/week). Real % when available; otherwise an estimate.
+function Meter({
+  t,
+  locale,
+  label,
+  tone,
+  live,
+  b,
+}: {
+  t: Translator;
+  locale: string;
+  label: string;
+  tone: 'warm' | 'cool';
+  live: boolean;
+  b?: UsageBucket;
+}) {
+  const pct = b?.usedPct;
+  const known = typeof pct === 'number';
+  const w = known ? Math.max(0, Math.min(1, pct)) * 100 : 0;
+  // Estimate: "≈" prefix and a faded bar (it isn't the account's real limit).
+  const right = known
+    ? `${live ? '' : '≈'}${Math.round(w)}%`
+    : b?.usd != null
+      ? fmtUsdShort(b.usd)
+      : t('usage.na');
+  return (
+    <div className="usage-meter">
+      <div className="usage-meter-head">
+        <span className="usage-meter-label">{label}</span>
+        <span className="usage-meter-pct">{right}</span>
+      </div>
+      <div className="usage-bar">
+        <span
+          className={`usage-bar-fill ${tone} ${known ? '' : 'unknown'} ${live ? '' : 'estimate'}`}
+          style={{ width: `${w}%` }}
+        />
+      </div>
+      {b?.resetsAt && <div className="usage-meter-sub">{t('usage.resetsIn', relReset(b.resetsAt, locale))}</div>}
+    </div>
+  );
+}
+
+function authLabel(m?: string): string {
+  if (m === 'claude.ai') return 'Claude AI';
+  if (m === 'console') return 'Anthropic Console';
+  if (m === 'apiKey') return 'API key';
+  return m || '—';
+}
+function planLabel(p?: string): string {
+  if (!p) return '—';
+  return `Claude ${p.charAt(0).toUpperCase()}${p.slice(1)}`;
+}
+
+// "Resets in 3h" / "3d" / "12m" a partir do ISO de reset.
+// Login warning window (days). The refresh token lasts weeks: warning early
+// gives time to run /login without interrupting a long session or a background task.
+const LOGIN_WARN_DAYS = 7;
+
+function expiringSoon(expiresAt?: number): boolean {
+  if (!expiresAt) return false;
+  return expiresAt - Date.now() < LOGIN_WARN_DAYS * 86400_000;
+}
+
+/** Login validity: "expired", "3d", "16d" — an absolute date when it is far away. */
+function relExpiry(expiresAt: number, locale: string): string {
+  const ms = expiresAt - Date.now();
+  if (ms <= 0) return locale.startsWith('pt') ? 'expirado' : 'expired';
+  const days = Math.floor(ms / 86400_000);
+  if (days < 1) return `${Math.max(1, Math.round(ms / 3600_000))}h`;
+  if (days <= 30) return `${days}d`;
+  try {
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(expiresAt));
+  } catch {
+    return `${days}d`;
+  }
+}
+
+function relReset(iso: string, _locale: string): string {
+  const ms = Date.parse(iso) - Date.now();
+  if (Number.isNaN(ms) || ms <= 0) return '0m';
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${m}m`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h}h`;
+  return `${Math.round(h / 24)}d`;
+}

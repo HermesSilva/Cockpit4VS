@@ -127,9 +127,14 @@
     </Content>
   </ItemGroup>
 
-  <!-- The React webview, built by esbuild into WebView\ before this project compiles. -->
+  <!--
+    Only index.html is listed statically. The bundle is added by the BuildWebView target
+    instead, because a glob is evaluated before any target runs: on a clean build the
+    generated files do not exist yet, and the VSIX would silently ship a tool window that
+    loads nothing.
+  -->
   <ItemGroup>
-    <Content Include="WebView\**\*.*">
+    <Content Include="WebView\index.html">
       <IncludeInVSIX>true</IncludeInVSIX>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -137,4 +142,52 @@
 
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(VSToolsPath)' != ''" />
+
+  <!--
+    Builds the React UI before the VSIX is packaged, so the bundle can never be stale
+    relative to the sources it came from.
+
+    It is skipped when node is unavailable rather than failing the build: a contributor
+    working only on the C# side should not need a JavaScript toolchain, and the previous
+    bundle is still on disk. It is an error only when there is no bundle at all, because
+    then the extension would ship a tool window that loads nothing.
+  -->
+  <Target Name="BuildWebView" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <WebViewDir>$(MSBuildProjectDirectory)\..\..\webview</WebViewDir>
+      <WebViewBundle>$(MSBuildProjectDirectory)\WebView\main.js</WebViewBundle>
+    </PropertyGroup>
+
+    <Exec Command="node --version" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="NodeExitCode" />
+    </Exec>
+
+    <Exec Condition="'$(NodeExitCode)' == '0' AND !Exists('$(WebViewDir)\node_modules')"
+          Command="npm install --no-audit --no-fund"
+          WorkingDirectory="$(WebViewDir)" />
+
+    <Exec Condition="'$(NodeExitCode)' == '0'"
+          Command="node esbuild.mjs $(WebViewEsbuildArgs)"
+          WorkingDirectory="$(WebViewDir)" />
+
+    <Warning Condition="'$(NodeExitCode)' != '0' AND Exists('$(WebViewBundle)')"
+             Text="node was not found; reusing the existing webview bundle." />
+
+    <Error Condition="'$(NodeExitCode)' != '0' AND !Exists('$(WebViewBundle)')"
+           Text="The webview bundle is missing and node is not available to build it. Install Node.js, or run 'npm run build' in the webview folder." />
+
+    <!-- Added here, after the files exist. A static glob would have been evaluated before
+         this target ran and would have packaged nothing on a clean build. -->
+    <ItemGroup>
+      <Content Include="$(MSBuildProjectDirectory)\WebView\main.*">
+        <IncludeInVSIX>true</IncludeInVSIX>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <Link>WebView\%(Filename)%(Extension)</Link>
+      </Content>
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <WebViewEsbuildArgs>--production</WebViewEsbuildArgs>
+  </PropertyGroup>
 </Project>

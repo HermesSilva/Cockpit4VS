@@ -10,17 +10,18 @@ namespace Tootega.Cockpit.Protocol
     {
         // --- Lifecycle and global state ---
 
-        public static HostMessage Ready(string locale) =>
-            new HostMessage("ready", ("locale", locale));
+        /// <summary>
+        /// The bridge is up. It carried a locale in the VS Code original; this port is
+        /// English-only, so there is nothing to announce beyond readiness itself.
+        /// </summary>
+        public static HostMessage Ready() =>
+            new HostMessage("ready");
 
         public static HostMessage Tabs(IReadOnlyList<TabInfo> tabs, string activeTab) =>
             new HostMessage("tabs", ("tabs", tabs), ("activeTab", activeTab));
 
         public static HostMessage Config(SessionConfig config) =>
             new HostMessage("config", ("config", config));
-
-        public static HostMessage Locale(string locale) =>
-            new HostMessage("locale", ("locale", locale));
 
         public static HostMessage CliStatus(bool available, string version = null, string error = null,
                                             string latest = null, string cockpitVersion = null) =>

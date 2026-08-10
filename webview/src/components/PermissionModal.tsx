@@ -1,0 +1,275 @@
+import { useEffect, useState } from 'react';
+import type { Translator } from '../strings';
+import type { PermissionRequest } from '../types';
+import { Markdown } from './Markdown';
+import { DiffView } from './DiffView';
+import { Portal } from './Portal';
+import { send } from '../vscodeApi';
+import { splitInvisible, hasInvisible, codeLabel, codeMark } from '../invisible';
+
+interface Props {
+  t: Translator;
+  req: PermissionRequest;
+  onDecision: (d: 'allow' | 'deny' | 'allow_always', message?: string) => void;
+}
+
+// Icon per tool (mirrors the Timeline's set).
+const TOOL_ICON: Record<string, string> = {
+  Bash: '$_',
+  Write: '✎',
+  Edit: '✎',
+  MultiEdit: '✎',
+  NotebookEdit: '✎',
+  Read: '◇',
+  WebFetch: '🌐',
+  WebSearch: '🔎',
+  Task: '⚙',
+};
+
+export function PermissionModal({ t, req, onDecision }: Props) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDecision('deny');
+      else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onDecision('allow');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onDecision]);
+
+  // Plan mode: ExitPlanMode arrives as a permission; the plan comes in input.plan.
+  if (req.tool === 'ExitPlanMode') {
+    return <PlanModal t={t} req={req} onDecision={onDecision} />;
+  }
+
+  const inp = (req.input ?? {}) as Record<string, unknown>;
+  const isShell = typeof inp.command === 'string' && !!inp.command;
+  const name = req.displayName || req.tool;
+  const icon = isShell ? '❯' : (TOOL_ICON[req.tool] ?? '◆');
+  const preview = inputPreview(req);
+  const alwaysLabel = suggestionLabel(t, req) ?? t('permission.allowAlways');
+
+  return (
+    <Portal>
+      <div className="modal-overlay" onClick={() => onDecision('deny')}>
+        <div
+          className={`modal perm ${preview?.kind === 'diff' ? 'has-diff' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="perm-head">
+            <span className={`perm-icon ${isShell ? 'shell' : ''}`}>{icon}</span>
+            <div className="perm-headtext">
+              <div className="modal-title">{t('permission.title')}</div>
+              <div className="perm-tool">{name}</div>
+            </div>
+          </div>
+
+          {req.description && <div className="perm-desc">{req.description}</div>}
+
+          {/* O comando carrega caracteres que não se veem (zero-width, bidi, padding de tab):
+              quem aprova precisa saber ANTES de decidir, não depois. */}
+          {preview?.kind === 'cmd' && hasInvisible(preview.text) && (
+            <div className="perm-warn">{t('permission.invisibleChars')}</div>
+          )}
+
+          {preview && <PreviewBlock p={preview} />}
+
+          {preview?.kind === 'diff' && (
+            <button
+              type="button"
+              className="btn perm-opendiff"
+              onClick={() => send({ kind: 'openDiff', tool: req.tool, input: req.input })}
+            >
+              {t('permission.openDiff')}
+            </button>
+          )}
+
+          <div className="modal-actions perm-actions">
+            <button type="button" className="btn deny" onClick={() => onDecision('deny')}>
+              {t('permission.deny')}
+            </button>
+            <button type="button" className="btn" onClick={() => onDecision('allow_always')}>
+              {alwaysLabel}
+            </button>
+            <button type="button" className="btn send" onClick={() => onDecision('allow')} autoFocus>
+              {t('permission.allow')}
+            </button>
+          </div>
+          <div className="perm-hint">{t('permission.shortcut')}</div>
+        </div>
+      </div>
+    </Portal>
+  );
+}
+
+// "Always allow" label derived from the CLI's suggestion (e.g. acceptEdits).
+function suggestionLabel(t: Translator, req: PermissionRequest): string | undefined {
+  const s = req.suggestions?.[0];
+  if (s?.type === 'setMode' && s.mode === 'acceptEdits') return t('permission.alwaysEdits');
+  return undefined;
+}
+
+type DiffSeg = { old: string; new: string; label?: string };
+type Preview =
+  | { kind: 'cmd'; text: string }
+  | { kind: 'url'; text: string }
+  | { kind: 'file'; label: string; text: string }
+  | { kind: 'diff'; segs: DiffSeg[] }
+  | { kind: 'json'; text: string };
+
+// Preview block per content type.
+function PreviewBlock({ p }: { p: Preview }) {
+  if (p.kind === 'diff') {
+    return (
+      <div className="perm-preview">
+        {p.segs.map((s, i) => (
+          <DiffView key={i} oldText={s.old} newText={s.new} label={s.label} />
+        ))}
+      </div>
+    );
+  }
+  if (p.kind === 'cmd') {
+    return (
+      <div className="perm-term">
+        <span className="perm-term-prompt">❯</span>
+        <code className="perm-term-cmd">
+          {splitInvisible(p.text).map((s, i) =>
+            s.code == null ? (
+              <span key={i}>{s.text}</span>
+            ) : (
+              <span key={i} className="perm-inv" title={codeLabel(s.code)}>
+                {codeMark(s.code)}
+              </span>
+            ),
+          )}
+        </code>
+      </div>
+    );
+  }
+  if (p.kind === 'url') {
+    return <div className="perm-url">{p.text}</div>;
+  }
+  if (p.kind === 'file') {
+    return (
+      <div className="perm-preview">
+        {p.label && (
+          <div className="perm-file">
+            <span className="perm-file-ico">▤</span>
+            <span className="perm-file-name">{p.label}</span>
+          </div>
+        )}
+        {p.text && <pre className="tool-pre mono">{p.text}</pre>}
+      </div>
+    );
+  }
+  return <pre className="tool-pre">{p.text}</pre>;
+}
+
+// Decides the preview by the input's content (not by the tool name — custom
+// shells like "PowerShell" also carry `command`).
+function inputPreview(req: PermissionRequest): Preview | null {
+  const inp = (req.input ?? {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' ? v : v == null ? '' : String(v));
+
+  if (typeof inp.command === 'string' && inp.command) {
+    return { kind: 'cmd', text: inp.command };
+  }
+  const file = str(inp.file_path);
+  if (req.tool === 'Write') {
+    return { kind: 'diff', segs: [{ old: req.oldText ?? '', new: str(inp.content), label: file }] };
+  }
+  if (req.tool === 'Edit') {
+    return { kind: 'diff', segs: [{ old: str(inp.old_string), new: str(inp.new_string), label: file }] };
+  }
+  if (req.tool === 'MultiEdit' && Array.isArray(inp.edits)) {
+    const segs = (inp.edits as Record<string, unknown>[]).map((e) => ({
+      old: str(e.old_string),
+      new: str(e.new_string),
+      label: file,
+    }));
+    if (segs.length) return { kind: 'diff', segs };
+  }
+  if (typeof inp.url === 'string' && inp.url) {
+    return { kind: 'url', text: inp.url };
+  }
+  // Generic: compact JSON, without repeating the description already shown above.
+  const rest: Record<string, unknown> = { ...inp };
+  if (req.description && rest.description === req.description) delete rest.description;
+  try {
+    const json = JSON.stringify(rest, null, 2);
+    if (json && json !== '{}') return { kind: 'json', text: clip(json, 600) };
+  } catch {
+    /* noop */
+  }
+  return null;
+}
+
+function clip(s: string, n: number): string {
+  return s.length > n ? s.slice(0, n) + '\n…' : s;
+}
+
+// Editable plan mode: view the plan (markdown) or edit it; "Approve" executes, "Keep
+// planning" declines by sending the edited plan / notes as feedback to the agent.
+function PlanModal({ t, req, onDecision }: Props) {
+  const plan = String((req.input as Record<string, unknown>)?.plan ?? '');
+  const [editing, setEditing] = useState(false);
+  const [maximized, setMaximized] = useState(false);
+  const [draft, setDraft] = useState(plan);
+  const edited = draft.trim() !== plan.trim();
+  const keepPlanning = () => onDecision('deny', edited ? draft : undefined);
+  return (
+    <Portal>
+      <div className="modal-overlay" onClick={keepPlanning}>
+        <div
+          className={`modal perm plan ${maximized ? 'maximized' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="perm-head">
+            <span className="perm-icon">◑</span>
+            <div className="perm-headtext">
+              <div className="modal-title">{t('permission.planTitle')}</div>
+              <div className="perm-tool">{t('permission.planSubtitle')}</div>
+            </div>
+            <button
+              type="button"
+              className="btn perm-plan-edit"
+              onClick={() => setEditing((v) => !v)}
+            >
+              {editing ? t('permission.planPreview') : t('permission.planEdit')}
+            </button>
+            {/* A long plan is unreadable in a 540px card — the toggle gives it the panel. */}
+            <button
+              type="button"
+              className="btn perm-plan-max"
+              title={maximized ? t('permission.planRestore') : t('permission.planMaximize')}
+              aria-label={maximized ? t('permission.planRestore') : t('permission.planMaximize')}
+              aria-pressed={maximized}
+              onClick={() => setMaximized((v) => !v)}
+            >
+              {maximized ? '❐' : '⛶'}
+            </button>
+          </div>
+          <div className="perm-plan-body">
+            {editing ? (
+              <textarea
+                className="perm-plan-textarea"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                autoFocus
+              />
+            ) : (
+              <Markdown text={draft} />
+            )}
+          </div>
+          <div className="modal-actions perm-actions">
+            <button type="button" className="btn deny" onClick={keepPlanning}>
+              {edited ? t('permission.planSendNotes') : t('permission.keepPlanning')}
+            </button>
+            <button type="button" className="btn send" onClick={() => onDecision('allow')}>
+              {t('permission.approvePlan')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Portal>
+  );
+}
