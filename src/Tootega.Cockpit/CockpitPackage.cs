@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 // Microsoft.VisualStudio.Shell also defines a Task type, so the BCL one is aliased.
 using Tasks = System.Threading.Tasks;
@@ -14,11 +15,14 @@ namespace Tootega.Cockpit
     /// <summary>
     /// Extension entry point. Port of src/extension.ts.
     ///
-    /// Loading is deferred until a Cockpit command or tool window is actually used
-    /// (AllowsBackgroundLoading + no autoload UI context): an extension that spawns a CLI
-    /// has no business slowing down VS start for users who never open it.
+    /// It loads in the background once the shell is up, rather than waiting for a command:
+    /// with `AllowsBackgroundLoading` the load costs the user nothing at start-up, and a
+    /// package that is already there is a package whose commands are live the first time
+    /// someone reaches for them. Nothing is spawned until a conversation is opened — the CLI
+    /// still starts on demand.
     /// </summary>
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
+    [ProvideAutoLoad(VSConstants.UICONTEXT.ShellInitialized_string, PackageAutoLoadFlags.BackgroundLoad)]
     [InstalledProductRegistration("#110", "#112", CockpitIds.ProductVersion)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(CockpitIds.PackageGuidString)]
