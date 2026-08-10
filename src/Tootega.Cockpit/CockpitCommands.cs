@@ -32,21 +32,16 @@ namespace Tootega.Cockpit
             }
 
             // --- Shell-only commands ---
-            AddShellCommand(menu, CockpitIds.CmdOpen, delegate
-            {
-                _ = package.JoinableTaskFactory.RunAsync(() => package.ShowToolWindowAsync<ChatToolWindow>(cancellationToken));
-            });
+            // Opening the Cockpit means opening a conversation. Focus the active one when there
+            // is one, so the command does not pile up empty windows.
+            AddHostCommand(menu, CockpitIds.CmdOpen, h => h.OpenOrFocusConversation());
 
             AddShellCommand(menu, CockpitIds.CmdOpenHub, delegate
             {
                 _ = package.JoinableTaskFactory.RunAsync(() => package.ShowToolWindowAsync<HubToolWindow>(cancellationToken));
             });
 
-            AddShellCommand(menu, CockpitIds.CmdReloadView, delegate
-            {
-                ThreadHelper.ThrowIfNotOnUIThread();
-                package.FindOpenChatWindow()?.Reload();
-            });
+            AddHostCommand(menu, CockpitIds.CmdReloadView, h => h.ReloadActiveView());
 
             AddShellCommand(menu, CockpitIds.CmdSettings, delegate
             {

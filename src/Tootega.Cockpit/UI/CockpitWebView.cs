@@ -43,12 +43,30 @@ namespace Tootega.Cockpit.UI
         public event EventHandler Ready;
 
         /// <param name="mode">"chat" or "hub" — the bundle renders one or the other.</param>
-        public CockpitWebView(string mode)
+        /// <param name="tabId">
+        /// The conversation this surface shows. One window per conversation, so it is fixed for
+        /// the window's life; the hub has none, because it always reflects the active tab.
+        /// </param>
+        public CockpitWebView(string mode, string tabId = null)
         {
             _mode = mode ?? "chat";
+            TabId = tabId;
             _web = new WebView2 { DefaultBackgroundColor = System.Drawing.Color.Transparent };
             Content = _web;
             VSColorTheme.ThemeChanged += OnThemeChanged;
+        }
+
+        /// <summary>The tab this surface belongs to, or null for the hub.</summary>
+        public string TabId { get; }
+
+        /// <summary>Whether a message tagged with <paramref name="tabId"/> is for this surface.</summary>
+        public bool Accepts(string tabId)
+        {
+            // An untagged message is global — config, CLI status, the tab list — and everyone
+            // needs it. The hub takes everything, since it renders whichever tab is active.
+            if (tabId == null || TabId == null) return true;
+
+            return string.Equals(TabId, tabId, StringComparison.Ordinal);
         }
 
         public async Task InitializeAsync()
@@ -228,7 +246,8 @@ namespace Tootega.Cockpit.UI
         /// </summary>
         private string BuildShim()
         {
-            var stateKey = "tootega.cockpit.state." + _mode;
+            // Per tab, so two conversations side by side do not share one draft.
+            var stateKey = "tootega.cockpit.state." + _mode + "." + (TabId ?? "default");
             return
                 "(function(){" +
                 "  var vs = window.chrome && window.chrome.webview;" +
@@ -250,7 +269,11 @@ namespace Tootega.Cockpit.UI
                 "  vs.addEventListener('message', function (e) {" +
                 "    window.postMessage(e.data, '*');" +
                 "  });" +
-                "  window.__cockpitMode = " + JsString(_mode) + ";" +
+                // What the bundle actually reads at start-up: which view to render, and which
+                // conversation this window is. They are set on the document-created script, so
+                // they exist before main.js runs.
+                "  window.__TOOTEGA_VIEW__ = " + JsString(_mode) + ";" +
+                "  window.__TOOTEGA_SESSION__ = " + JsString(TabId ?? string.Empty) + ";" +
                 "})();";
         }
 

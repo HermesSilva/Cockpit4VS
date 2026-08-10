@@ -7,21 +7,37 @@ using Tootega.Cockpit.Util;
 
 namespace Tootega.Cockpit.Host
 {
+    /// <summary>A message a surface sent, with the conversation it came from.</summary>
+    internal sealed class SurfaceMessage
+    {
+        public SurfaceMessage(string tabId, string json)
+        {
+            TabId = tabId;
+            Json = json;
+        }
+
+        /// <summary>The sending window's tab, or null when it was the hub.</summary>
+        public string TabId { get; }
+
+        public string Json { get; }
+    }
+
     /// <summary>
     /// The set of live webviews, and the one way to reach them.
     ///
-    /// There can be two at once — the chat window and the hub — showing different views of the
-    /// same state. Messages are broadcast to both rather than routed to one: the webview
-    /// already filters by tab id, and getting that filtering right in two places is harder
-    /// than sending one extra message.
+    /// There is one window per conversation, plus the hub. A message tagged with a tab goes only
+    /// to that conversation's window — with several open, broadcasting would make every window
+    /// repaint on every token of every other one. Untagged messages are global (config, CLI
+    /// status, the tab list) and go everywhere; the hub takes everything, since it renders
+    /// whichever conversation is active.
     /// </summary>
     internal sealed class SurfaceBroadcaster
     {
         private readonly List<CockpitWebView> _surfaces = new List<CockpitWebView>();
         private readonly object _gate = new object();
 
-        /// <summary>Raised with the raw JSON of every message a surface sends.</summary>
-        public event EventHandler<string> MessageReceived;
+        /// <summary>Raised for every message a surface sends, with its origin.</summary>
+        public event EventHandler<SurfaceMessage> MessageReceived;
 
         public void Register(CockpitWebView view)
         {
@@ -46,12 +62,12 @@ namespace Tootega.Cockpit.Host
 
         private void OnSurfaceMessage(object sender, string json)
         {
-            MessageReceived?.Invoke(this, json);
+            var view = sender as CockpitWebView;
+            MessageReceived?.Invoke(this, new SurfaceMessage(view?.TabId, json));
         }
 
         /// <summary>
-        /// Sends a message to every surface, tagged with the tab it belongs to. A null tab
-        /// means the message is global — config, sessions, CLI status.
+        /// Sends a message to the surfaces it concerns. A null tab means it is global.
         /// </summary>
         public void Post(HostMessage message, string tabId = null)
         {
@@ -71,7 +87,7 @@ namespace Tootega.Cockpit.Host
             }
 
             List<CockpitWebView> surfaces;
-            lock (_gate) surfaces = _surfaces.ToList();
+            lock (_gate) surfaces = _surfaces.Where(s => s.Accepts(tabId)).ToList();
 
             foreach (var surface in surfaces) surface.PostMessage(json);
         }
@@ -79,6 +95,17 @@ namespace Tootega.Cockpit.Host
         public bool HasSurfaces
         {
             get { lock (_gate) return _surfaces.Count > 0; }
+        }
+
+        /// <summary>Whether a conversation has a window of its own open.</summary>
+        public bool HasWindowFor(string tabId)
+        {
+            if (tabId == null) return false;
+
+            lock (_gate)
+            {
+                return _surfaces.Any(s => string.Equals(s.TabId, tabId, StringComparison.Ordinal));
+            }
         }
     }
 }

@@ -22,7 +22,8 @@ namespace Tootega.Cockpit
     [InstalledProductRegistration("#110", "#112", "1.0.0")]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(CockpitIds.PackageGuidString)]
-    [ProvideToolWindow(typeof(ChatToolWindow), Style = VsDockStyle.Tabbed, Window = EnvDTE.Constants.vsWindowKindMainWindow, Orientation = ToolWindowOrientation.Right)]
+    // MultiInstances: one window per conversation, each with its own folder and process.
+    [ProvideToolWindow(typeof(ChatToolWindow), MultiInstances = true, Style = VsDockStyle.Tabbed, Window = EnvDTE.Constants.vsWindowKindMainWindow, Orientation = ToolWindowOrientation.Right)]
     [ProvideToolWindow(typeof(HubToolWindow), Style = VsDockStyle.Tabbed, Window = EnvDTE.Constants.vsWindowKindSolutionExplorer, Orientation = ToolWindowOrientation.Right)]
     [ProvideOptionPage(typeof(CockpitOptions), "Tootega Cockpit", "General", 0, 0, true)]
     [ProvideProfile(typeof(CockpitOptions), "Tootega Cockpit", "General", 0, 0, true)]
@@ -64,16 +65,111 @@ namespace Tootega.Cockpit
 
         internal CockpitOptions Options => (CockpitOptions)GetDialogPage(typeof(CockpitOptions));
 
-        /// <summary>Shows a tool window, creating it on first use.</summary>
+        /// <summary>
+        /// The tab the next conversation window should adopt.
+        ///
+        /// A handshake rather than a constructor argument: the shell builds the window and calls
+        /// OnCreate itself, so there is no way to pass anything in. Both sides run on the UI
+        /// thread between the request and the creation, which is what makes a single slot safe.
+        /// </summary>
+        private static string _pendingTabId;
+
+        internal static void SetPendingTab(string tabId) => _pendingTabId = tabId;
+
+        /// <summary>Consumes the pending tab, if the package asked for a specific one.</summary>
+        internal static string TakePendingTab()
+        {
+            var tabId = _pendingTabId;
+            _pendingTabId = null;
+            return tabId;
+        }
+
+        /// <summary>Shows a single-instance tool window, creating it on first use.</summary>
         internal async Tasks.Task<T> ShowToolWindowAsync<T>(CancellationToken cancellationToken)
             where T : CockpitToolWindowBase
         {
             await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
             var window = await FindToolWindowAsync(typeof(T), 0, true, DisposalToken) as T;
+            return Show(window, typeof(T).Name);
+        }
+
+        /// <summary>
+        /// Shows the window of one conversation, opening it when it has none.
+        ///
+        /// Instance ids are the shell's handle on a multi-instance window, and they must be
+        /// stable for the window's life; the tab id is ours. The two are matched by walking the
+        /// open instances rather than by keeping a map, which cannot drift out of date.
+        /// </summary>
+        internal async Tasks.Task<ChatToolWindow> ShowConversationAsync(string tabId, CancellationToken cancellationToken)
+        {
+            await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+            var existing = FindConversationWindow(tabId);
+            if (existing != null) return Show(existing, "conversation");
+
+            SetPendingTab(tabId);
+
+            try
+            {
+                var window = await FindToolWindowAsync(typeof(ChatToolWindow), NextInstanceId(), true, DisposalToken)
+                    as ChatToolWindow;
+
+                return Show(window, "conversation");
+            }
+            finally
+            {
+                // Cleared even on failure: a stale pending tab would be adopted by the next
+                // window the shell happens to restore.
+                TakePendingTab();
+            }
+        }
+
+        /// <summary>The open window of a conversation, or null.</summary>
+        internal ChatToolWindow FindConversationWindow(string tabId)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (tabId == null) return null;
+
+            for (var id = 0; id < MaxConversationWindows; id++)
+            {
+                if (!(FindToolWindow(typeof(ChatToolWindow), id, false) is ChatToolWindow window)) continue;
+                if (string.Equals(window.TabId, tabId, StringComparison.Ordinal)) return window;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// How many conversation windows can exist at once.
+        ///
+        /// A bound, because finding a free instance id means probing them: without one, a leak
+        /// would turn into an endless loop rather than a message.
+        /// </summary>
+        private const int MaxConversationWindows = 32;
+
+        private int NextInstanceId()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            // Zero is skipped: the shell reserves it for the single-instance case, and reusing
+            // it makes a restored window collide with a freshly opened one.
+            for (var id = 1; id < MaxConversationWindows; id++)
+            {
+                if (FindToolWindow(typeof(ChatToolWindow), id, false) == null) return id;
+            }
+
+            Log.Info("Too many conversation windows are open; close one before opening another.");
+            return MaxConversationWindows;
+        }
+
+        private T Show<T>(T window, string what) where T : CockpitToolWindowBase
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             if (window?.Frame == null)
             {
-                Log.Error("Could not create the " + typeof(T).Name + " tool window.");
+                Log.Error("Could not create the " + what + " window.");
                 return null;
             }
 
@@ -83,11 +179,27 @@ namespace Tootega.Cockpit
             return window;
         }
 
-        /// <summary>The already-open chat window, or null when it was never opened.</summary>
-        internal ChatToolWindow FindOpenChatWindow()
+        /// <summary>Closes a conversation's window, when it has one open.</summary>
+        internal void CloseConversationWindow(string tabId)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            return FindToolWindow(typeof(ChatToolWindow), 0, false) as ChatToolWindow;
+
+            var window = FindConversationWindow(tabId);
+            if (window?.Frame == null) return;
+
+            var frame = (Microsoft.VisualStudio.Shell.Interop.IVsWindowFrame)window.Frame;
+            frame.CloseFrame((uint)Microsoft.VisualStudio.Shell.Interop.__FRAMECLOSE.FRAMECLOSE_NoSave);
+        }
+
+        /// <summary>Re-reads every conversation window's caption after a title or folder change.</summary>
+        internal void RefreshConversationCaptions()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            for (var id = 0; id < MaxConversationWindows; id++)
+            {
+                (FindToolWindow(typeof(ChatToolWindow), id, false) as ChatToolWindow)?.UpdateCaption();
+            }
         }
     }
 }

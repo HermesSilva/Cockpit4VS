@@ -31,14 +31,21 @@ namespace Tootega.Cockpit.Host
             _host = host ?? throw new ArgumentNullException(nameof(host));
         }
 
-        public async Task RouteAsync(WebviewMessage message)
+        /// <param name="origin">
+        /// The conversation of the window the message came from, or null when it came from the
+        /// hub — which has no conversation of its own and speaks for the active one.
+        /// </param>
+        public async Task RouteAsync(WebviewMessage message, string origin = null)
         {
             // Asserting would be wrong in a Task-returning method: it is cheaper and safer to
             // switch than to demand the caller got it right.
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            var tabId = _host.Tabs.EnsureActiveTab();
+            var tabId = _host.Tabs.Has(origin) ? origin : _host.Tabs.EnsureActiveTab();
             var session = _host.Tabs.SessionFor(tabId);
+
+            // The conversation being used is the active one, which is what the hub reflects.
+            if (origin != null) _host.Tabs.SetActive(origin);
 
             // Resolved once per message: nearly every handler below is scoped to the folder of
             // the tab the message came from, never to the window's.
@@ -149,7 +156,7 @@ namespace Tootega.Cockpit.Host
                     return;
 
                 case WebviewMessageKinds.ResumeSession:
-                    OpenSession(tabId, message.GetString("sessionId"));
+                    OpenSession(cwd, message.GetString("sessionId"));
                     return;
 
                 case WebviewMessageKinds.ReloadSession:
@@ -183,40 +190,30 @@ namespace Tootega.Cockpit.Host
                 // --- Tabs ---
 
                 case WebviewMessageKinds.NewTab:
-                {
                     // A new tab inherits the folder of the one it was opened from, which is
-                    // almost always the folder the user is still thinking about.
-                    var created = _host.Tabs.CreateTab(message.GetString("cwd") ?? cwd);
-                    _host.SendConfig();
-                    _host.Post(HostMessages.History(new List<HistoryItem>()), created);
-                    _host.SendSessions(created);
+                    // almost always the folder the user is still thinking about. It gets a window
+                    // of its own, because that is what a conversation is here.
+                    _host.OpenConversation(message.GetString("cwd") ?? cwd);
                     return;
-                }
 
                 case WebviewMessageKinds.SetTabCwd:
                     SetTabCwd(message.GetString("tabId") ?? tabId, message.GetString("path"));
                     return;
 
                 case WebviewMessageKinds.CloseTab:
-                {
-                    var target = message.GetString("tabId");
-                    if (!_host.Tabs.Close(target, out var emptied)) return;
-
-                    if (emptied) _host.Post(HostMessages.History(new List<HistoryItem>()), target);
-                    else if (_host.Tabs.ActiveTab != null) _host.ReplayTab(_host.Tabs.ActiveTab, force: true);
+                    // Closing the window is what closes the conversation; the window's own
+                    // teardown then drops the tab, so there is one path for both routes.
+                    _host.CloseConversation(message.GetString("tabId") ?? tabId);
                     return;
-                }
 
                 case WebviewMessageKinds.SwitchTab:
                 {
+                    // Switching means bringing that conversation's window forward — from the hub,
+                    // that is exactly what the user is asking for.
                     var target = message.GetString("tabId");
-                    if (!_host.Tabs.SetActive(target)) return;
+                    if (!_host.Tabs.Has(target)) return;
 
-                    _host.SendConfig();
-                    // The history panel follows the tab, since it lists that folder's
-                    // conversations and the folder may have just changed.
-                    _host.SendSessions(target);
-                    _host.ReplayTab(target, force: true);
+                    _host.ShowConversation(target);
                     return;
                 }
 
@@ -267,7 +264,9 @@ namespace Tootega.Cockpit.Host
                     return;
 
                 case WebviewMessageKinds.OpenEditor:
-                    _host.ShowChatWindow();
+                    // Sent by the hub after it resumes or creates a conversation: bring THAT
+                    // conversation's window forward, not some other one.
+                    _host.ShowConversation(tabId);
                     return;
 
                 case WebviewMessageKinds.OpenFolder:
@@ -575,13 +574,29 @@ namespace Tootega.Cockpit.Host
             _host.SendConfig();
         }
 
-        private void OpenSession(string tabId, string sessionId)
+        /// <summary>
+        /// Opens a saved conversation.
+        ///
+        /// In its own window, and never over the one the request came from: the conversation the
+        /// user was looking at is not the one they asked to open, and replacing it would lose a
+        /// running turn. A conversation already open is focused instead of duplicated — two
+        /// processes on one transcript would double the context on disk.
+        /// </summary>
+        private void OpenSession(string cwd, string sessionId)
         {
             if (string.IsNullOrEmpty(sessionId)) return;
 
+            var open = _host.TabOf(sessionId);
+            if (open != null)
+            {
+                _host.ShowConversation(open);
+                return;
+            }
+
+            var tabId = _host.Tabs.CreateTab(cwd);
             _host.Tabs.SessionFor(tabId).Resume(sessionId);
-            _host.Tabs.SetTitle(tabId, _host.Library.TitleOf(_host.Tabs.Cwd(tabId), sessionId));
-            _host.ReplayTab(tabId, force: true);
+            _host.Tabs.SetTitle(tabId, _host.Library.TitleOf(cwd, sessionId));
+            _host.ShowConversation(tabId);
         }
 
         /// <summary>
@@ -613,6 +628,11 @@ namespace Tootega.Cockpit.Host
         private void AutoResumeLast(string tabId)
         {
             if (!_host.Settings.AutoResumeLastSession) return;
+
+            // Once per IDE session, on the first conversation window. Every window after that
+            // was opened deliberately — "New session" resuming the previous conversation would
+            // be the opposite of what was asked.
+            if (!_host.ClaimAutoResume()) return;
 
             var session = _host.Tabs.SessionFor(tabId);
             if (session.SessionId != null || session.ResumeId != null) return;

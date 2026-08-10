@@ -49,6 +49,15 @@
       <Group guid="guidCockpitCmdSet" id="GroupOtherWindows" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
       </Group>
+
+      <!--
+        And directly under View, beside Solution Explorer and the other primary panels.
+        Two entry points rather than one: Other Windows is a long list, and an extension
+        nobody can find is an extension that does not work.
+      -->
+      <Group guid="guidCockpitCmdSet" id="GroupViewWindows" priority="0x0700">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWSEXPLORERS" />
+      </Group>
     </Groups>
 
     <Buttons>
@@ -230,6 +239,13 @@
     <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpenHub" priority="0x0110">
       <Parent guid="guidCockpitCmdSet" id="GroupOtherWindows" />
     </CommandPlacement>
+
+    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpen" priority="0x0100">
+      <Parent guid="guidCockpitCmdSet" id="GroupViewWindows" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpenHub" priority="0x0110">
+      <Parent guid="guidCockpitCmdSet" id="GroupViewWindows" />
+    </CommandPlacement>
   </CommandPlacements>
 
   <!-- Same shortcuts as the VS Code extension, so muscle memory carries over. -->
@@ -254,6 +270,7 @@
       <IDSymbol name="ChatToolbar" value="0x1030" />
       <IDSymbol name="ChatToolbarGroup" value="0x1031" />
       <IDSymbol name="GroupOtherWindows" value="0x1040" />
+      <IDSymbol name="GroupViewWindows" value="0x1041" />
 
       <IDSymbol name="cmdidOpen" value="0x0100" />
       <IDSymbol name="cmdidNewSession" value="0x0101" />

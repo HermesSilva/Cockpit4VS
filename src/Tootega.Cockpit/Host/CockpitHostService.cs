@@ -76,7 +76,17 @@ namespace Tootega.Cockpit.Host
             _library = new SessionLibrary(new SessionStore(), _state);
 
             _tabs = new TabRegistry(CreateSession, () => _editor.WorkspaceCwd());
-            _tabs.Changed += (s, e) => PostTabs();
+            _tabs.Changed += (s, e) =>
+            {
+                PostTabs();
+
+                // VSTHRD010: RefreshCaptions reads as UI-affinitized because the UI call is in
+                // its body, but that call is inside a switch to the main thread — which is
+                // exactly why this handler can be reached from a CLI reader thread.
+#pragma warning disable VSTHRD010
+                RefreshCaptions();
+#pragma warning restore VSTHRD010
+            };
 
             var dictionary = new VoiceDictionary();
             var terms = new WorkspaceTerms();
@@ -145,6 +155,18 @@ namespace Tootega.Cockpit.Host
         /// <summary>A model/effort/permission change waiting for the next send to take effect.</summary>
         internal bool PendingRestart { get; set; }
 
+        private bool _autoResumeDone;
+
+        /// <summary>
+        /// Takes the one auto-resume this IDE session gets. False every time after that.
+        /// </summary>
+        internal bool ClaimAutoResume()
+        {
+            if (_autoResumeDone) return false;
+            _autoResumeDone = true;
+            return true;
+        }
+
         internal void Post(HostMessage message, string tabId = null) => _surfaces.Post(message, tabId);
 
         // ---- Surfaces ----
@@ -153,14 +175,19 @@ namespace Tootega.Cockpit.Host
 
         public void UnregisterSurface(CockpitWebView view) => _surfaces.Unregister(view);
 
-        private void OnSurfaceMessage(object sender, string json)
+        private void OnSurfaceMessage(object sender, SurfaceMessage surfaceMessage)
         {
-            var message = WebviewMessage.Parse(json);
+            var message = WebviewMessage.Parse(surfaceMessage.Json);
             if (message == null)
             {
                 Log.Debug("host: unusable message from the webview");
                 return;
             }
+
+            // Which conversation this message belongs to comes from the WINDOW it came from, not
+            // from whichever tab happens to be active: with several conversations open, the user
+            // types into one while another streams.
+            var origin = surfaceMessage.TabId;
 
             // Handlers touch VS services and the webview, so the whole route runs on the UI
             // thread rather than each handler marshalling for itself.
@@ -174,7 +201,7 @@ namespace Tootega.Cockpit.Host
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 try
                 {
-                    await _router.RouteAsync(message);
+                    await _router.RouteAsync(message, origin);
                 }
                 catch (Exception ex)
                 {
@@ -214,9 +241,9 @@ namespace Tootega.Cockpit.Host
                     RefreshUsageAfterTurn();
                 },
 
-                // A permission prompt or a question is waiting: the conversation has to be
+                // A permission prompt or a question is waiting: THIS conversation has to be
                 // visible, or the user is blocked by something they cannot see.
-                OnInteraction = ShowChatWindow,
+                OnInteraction = () => ShowConversation(tabId),
 
                 OnInit = (model, commands) =>
                 {
@@ -490,17 +517,109 @@ namespace Tootega.Cockpit.Host
             return OpenPingResult.None;
         }
 
-        internal void ShowChatWindow()
+        /// <summary>
+        /// Opens a new conversation in a window of its own.
+        /// </summary>
+        /// <param name="cwd">The folder it runs in; the IDE's when null.</param>
+        internal void OpenConversation(string cwd = null)
         {
-            // Fire-and-forget for the same reason as the router: the callers are void handlers
-            // reacting to CLI events, and none of them can wait for a window to open.
+            var tabId = _tabs.CreateTab(cwd);
+            ShowConversation(tabId);
+        }
+
+        /// <summary>
+        /// Brings a conversation's window forward, opening it if it has none.
+        ///
+        /// Fire-and-forget: the callers are void handlers reacting to CLI events — a permission
+        /// prompt arriving, a question being asked — and none of them can wait for a window.
+        /// </summary>
+        internal void ShowConversation(string tabId)
+        {
+            if (tabId == null) return;
+
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                await _package.ShowToolWindowAsync<ChatToolWindow>(_package.DisposalToken);
-            }).FileAndForget("tootega/cockpit/showChat");
+                await _package.ShowConversationAsync(tabId, _package.DisposalToken);
+            }).FileAndForget("tootega/cockpit/showConversation");
 #pragma warning restore VSSDK007
+        }
+
+        /// <summary>
+        /// Renames every conversation window after its title and folder.
+        ///
+        /// Marshalled, because tab changes come from CLI reader threads as often as from the UI:
+        /// a title is set by the first prompt of a turn.
+        /// </summary>
+        private void RefreshCaptions()
+        {
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                _package.RefreshConversationCaptions();
+            }).FileAndForget("tootega/cockpit/refreshCaptions");
+#pragma warning restore VSSDK007
+        }
+
+        /// <summary>The tab already holding a conversation, or null when none is.</summary>
+        internal string TabOf(string sessionId)
+        {
+            if (sessionId == null) return null;
+
+            foreach (var entry in _tabs.Entries)
+            {
+                var id = entry.Value.SessionId ?? entry.Value.ResumeId;
+                if (id == sessionId) return entry.Key;
+            }
+
+            return null;
+        }
+
+        /// <summary>Brings the hub forward, opening it on first use.</summary>
+        internal void ShowHub()
+        {
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                await _package.ShowToolWindowAsync<HubToolWindow>(_package.DisposalToken);
+            }).FileAndForget("tootega/cockpit/showHub");
+#pragma warning restore VSSDK007
+        }
+
+        /// <summary>Closes a conversation by closing its window.</summary>
+        internal void CloseConversation(string tabId)
+        {
+            if (tabId == null) return;
+
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                // No window (it was closed already, or never opened): drop the tab directly, so
+                // the hub does not keep listing a conversation nobody can reach.
+                if (_package.FindConversationWindow(tabId) == null) CloseTabFromWindow(tabId);
+                else _package.CloseConversationWindow(tabId);
+            }).FileAndForget("tootega/cockpit/closeConversation");
+#pragma warning restore VSSDK007
+        }
+
+        /// <summary>
+        /// Drops a tab because its window is gone.
+        ///
+        /// Called from the window's teardown, which is the only place that knows it happened —
+        /// the user can close a window from its own close button, the tab strip, or by closing
+        /// the whole IDE layout.
+        /// </summary>
+        public void CloseTabFromWindow(string tabId)
+        {
+            if (_disposed || tabId == null) return;
+
+            _tabs.Drop(tabId);
+            SendConfig();
         }
 
         internal string UserName()
@@ -525,21 +644,40 @@ namespace Tootega.Cockpit.Host
 
         // ---- ICockpitHost: the menu commands ----
 
-        public void NewSession()
+        /// <summary>
+        /// Starts a conversation in a window of its own.
+        ///
+        /// It does not clear whatever is open: a new conversation is a new window, and wiping
+        /// the one in front of the user was never what this command meant.
+        /// </summary>
+        public void NewSession() => OpenConversation();
+
+        public void OpenOrFocusConversation()
         {
-            var tabId = _tabs.EnsureActiveTab();
-            _tabs.SessionFor(tabId).ClearConversation();
-            _tabs.SetTitle(tabId, null);
-            Post(HostMessages.History(new List<HistoryItem>()), tabId);
-            SendConfig();
+            // The active conversation, when there is one; a new one otherwise. Repeating the
+            // command must not leave a trail of empty windows behind.
+            if (_tabs.ActiveTab != null && _tabs.Has(_tabs.ActiveTab)) ShowConversation(_tabs.ActiveTab);
+            else OpenConversation();
+        }
+
+        public void ReloadActiveView()
+        {
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                _package.FindConversationWindow(_tabs.ActiveTab)?.Reload();
+            }).FileAndForget("tootega/cockpit/reloadView");
+#pragma warning restore VSSDK007
         }
 
         public void Interrupt() => _tabs.Active().Interrupt();
 
         public void OpenSessions()
         {
-            ShowChatWindow();
-            SendSessions();
+            // The saved-context list lives in the hub, which is where this command belongs: it
+            // is a question about every conversation, not about one.
+            ShowHub();
             Post(HostMessages.OpenSessions());
         }
 
@@ -554,8 +692,7 @@ namespace Tootega.Cockpit.Host
             var tabId = _tabs.CreateTab(cwd);
             _tabs.SessionFor(tabId).Resume(latest);
             _tabs.SetTitle(tabId, _library.TitleOf(cwd, latest));
-            ReplayTab(tabId, force: true);
-            ShowChatWindow();
+            ShowConversation(tabId);
         }
 
         // Sign-in and update run in a visible console: they are interactive, and hiding them

@@ -12,6 +12,16 @@ namespace Tootega.Cockpit
     internal interface ICockpitHost
     {
         void NewSession();
+
+        /// <summary>
+        /// Brings the current conversation forward, starting one when there is none. What "Open
+        /// Cockpit" means, and deliberately not "open another empty conversation".
+        /// </summary>
+        void OpenOrFocusConversation();
+
+        /// <summary>Reloads the active conversation's renderer — the recovery for a dead webview.</summary>
+        void ReloadActiveView();
+
         void Interrupt();
         void OpenSessions();
         void ReopenClosed();

@@ -99,29 +99,25 @@ namespace Tootega.Cockpit.Host
         public bool SetActive(string tabId)
         {
             if (!Has(tabId)) return false;
+            // Announced only on a real change: the active tab is re-asserted by every message a
+            // window sends, and notifying each time would repaint the hub on every heartbeat.
+            if (ActiveTab == tabId) return true;
+
             ActiveTab = tabId;
             Changed?.Invoke(this, EventArgs.Empty);
             return true;
         }
 
         /// <summary>
-        /// Closes a tab, or empties it when it is the last one.
+        /// Drops a tab, stopping its process.
         ///
-        /// A Cockpit with no conversation has nothing to show and no way back except a
-        /// command, so the last tab is cleared rather than removed.
+        /// Even the last one: a conversation here IS its window, and once that window is gone
+        /// there is nothing to keep an empty tab for. The transcript stays on disk and the hub
+        /// still lists it, so nothing the user typed is lost.
         /// </summary>
-        public bool Close(string tabId, out bool emptiedInstead)
+        public bool Drop(string tabId)
         {
-            emptiedInstead = false;
             if (!_sessions.TryGetValue(tabId, out var session)) return false;
-
-            if (_order.Count <= 1)
-            {
-                session.ClearConversation();
-                SetTitle(tabId, null);
-                emptiedInstead = true;
-                return true;
-            }
 
             try
             {

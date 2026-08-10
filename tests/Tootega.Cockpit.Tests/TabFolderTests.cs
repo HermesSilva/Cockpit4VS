@@ -105,6 +105,56 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
+        public void DroppingATabRemovesItEvenWhenItIsTheLastOne()
+        {
+            using (var tabs = NewRegistry(out _))
+            {
+                var only = tabs.CreateTab(_folderA);
+
+                // A conversation IS its window here, so closing that window leaves nothing to
+                // keep an empty tab for — the transcript is still on disk either way.
+                Assert.True(tabs.Drop(only));
+
+                Assert.Equal(0, tabs.Count);
+                Assert.False(tabs.Has(only));
+                Assert.Empty(tabs.Snapshot());
+            }
+        }
+
+        [Fact]
+        public void DroppingTheActiveTabMovesTheActiveMarkerToAnotherOne()
+        {
+            using (var tabs = NewRegistry(out _))
+            {
+                var first = tabs.CreateTab(_folderA);
+                var second = tabs.CreateTab(_folderB);
+
+                Assert.Equal(second, tabs.ActiveTab);
+                tabs.Drop(second);
+
+                // Something has to be active for the hub to have anything to show.
+                Assert.Equal(first, tabs.ActiveTab);
+            }
+        }
+
+        [Fact]
+        public void SwitchingToTheAlreadyActiveTabAnnouncesNothing()
+        {
+            using (var tabs = NewRegistry(out _))
+            {
+                var tabId = tabs.CreateTab(_folderA);
+
+                var changes = 0;
+                tabs.Changed += (s, e) => changes++;
+
+                // Every message a window sends re-asserts its tab as active; announcing each
+                // one would repaint the hub on every heartbeat.
+                Assert.True(tabs.SetActive(tabId));
+                Assert.Equal(0, changes);
+            }
+        }
+
+        [Fact]
         public void ANewTabWithNoFolderFallsBackToTheWindows()
         {
             using (var tabs = NewRegistry(out _))
