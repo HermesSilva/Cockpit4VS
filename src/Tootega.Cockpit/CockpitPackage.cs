@@ -64,10 +64,24 @@ namespace Tootega.Cockpit
 
             await CockpitCommands.InitializeAsync(this, cancellationToken);
 
+            if (options.TitleBarButton) TitleBarButton.Install(this);
+
+            // The option is a plain toggle: applying it adds or removes the button there and
+            // then, rather than asking for a restart the shell does not need.
+            CockpitOptions.Applied += OnOptionsApplied;
+
             Log.Info("Tootega Cockpit activated.");
         }
 
         internal CockpitOptions Options => (CockpitOptions)GetDialogPage(typeof(CockpitOptions));
+
+        private void OnOptionsApplied(object sender, EventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            if (Options.TitleBarButton) TitleBarButton.Install(this);
+            else TitleBarButton.Uninstall();
+        }
 
         /// <summary>
         /// The tab the next conversation window should adopt.

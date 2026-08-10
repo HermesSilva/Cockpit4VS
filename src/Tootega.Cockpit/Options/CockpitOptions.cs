@@ -141,6 +141,11 @@ namespace Tootega.Cockpit.Options
         [Description("Run the local OpenTelemetry receiver that aggregates Claude Code telemetry.")]
         public bool OtelEnabled { get; set; } = false;
 
+        [Category(CatInterface)]
+        [DisplayName("Title bar button")]
+        [Description("Show a Cockpit button in the Visual Studio title bar, beside Copilot's. Visual Studio has no supported extension point there, so the button is added to the shell's own window and may stop appearing after a Visual Studio update.")]
+        public bool TitleBarButton { get; set; } = true;
+
         [Category(CatAdvanced)]
         [DisplayName("Debug logging")]
         [Description("Verbose logging in the Tootega Cockpit output pane.")]
