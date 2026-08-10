@@ -430,6 +430,11 @@ export interface TabInfo {
   title: string;
   status: 'idle' | 'busy' | 'error';
   sessionId?: string; // the session's transcript id (matches SessionInfo.id)
+  /**
+   * The folder the tab's conversation runs in. Per tab rather than per window, because the
+   * CLI scopes conversations, permissions and CLAUDE.md directives by folder.
+   */
+  cwd?: string;
 }
 
 // Metadata of a vault credential (it never carries the secret value).
@@ -642,9 +647,12 @@ export type WebviewToHost =
   | { kind: 'remoteControl'; sessionId: string } // publishes the session for remote control (phone)
   | { kind: 'deleteSession'; sessionId: string }
   | { kind: 'deleteAllSessions' }
-  | { kind: 'newTab' }
+  | { kind: 'newTab'; cwd?: string } // no folder = inherit the current tab's
   | { kind: 'closeTab'; tabId: string }
   | { kind: 'switchTab'; tabId: string }
+  // Moves a tab to another folder. Without a path the host opens its folder browser, which
+  // the webview has no way to show.
+  | { kind: 'setTabCwd'; tabId: string; path?: string }
   | { kind: 'installCli' }
   | { kind: 'updateCli' }
   | { kind: 'recheckCli' }

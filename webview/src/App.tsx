@@ -20,6 +20,7 @@ import type {
 import { send } from './vscodeApi';
 import { t } from './strings';
 import { CliMissing } from './components/CliMissing';
+import { FolderBar } from './components/FolderBar';
 import { Timeline, seedTaskTimings } from './components/Timeline';
 import { Composer } from './components/Composer';
 import { HubView } from './components/HubView';
@@ -489,6 +490,16 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
           onLogin={() => send({ kind: 'loginCli' })}
           onRecheck={() => send({ kind: 'recheckCli' })}
           onDocs={(href) => send({ kind: 'openLink', href })}
+        />
+      )}
+
+      {tab && (
+        <FolderBar
+          t={t}
+          cwd={tab.cwd}
+          busy={tab.status === 'busy'}
+          onChange={() => send({ kind: 'setTabCwd', tabId: tab.id })}
+          onOpen={(path) => send({ kind: 'openFolder', path })}
         />
       )}
 

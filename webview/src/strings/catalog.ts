@@ -566,6 +566,13 @@ export const strings = {
   'ctxPanel.contexts': 'Saved contexts',
   'ctxPanel.noStats': 'No context stats yet — send a message to start.',
   'ctxPanel.openFolder': 'Open folder in file manager',
+
+  'folder.title': 'Conversation folder',
+  'folder.reveal': 'Open this folder in the file manager',
+  'folder.change': 'Change…',
+  'folder.changeHint': 'Run this conversation in another folder',
+  'folder.changeBusy': 'Wait for the current turn to finish',
+
   'hub.openEditor': 'Open chat',
   'tip.context.title': 'Context panel',
   'tip.context.desc': 'Context window, session controls and saved contexts.',

@@ -31,12 +31,18 @@ export interface TabState {
   // each process is doing. `bgBusy` = derived (bgTasks.length > 0).
   bgTasks?: BackgroundTask[];
   bgBusy?: boolean;
-  // A aba foi entregue a uma sessão de Remote Control no terminal: quem conduz é o
-  // terminal/celular, e o composer daqui fica fora do caminho.
+  // The tab was handed over to a Remote Control session in the terminal: the terminal or
+  // phone drives it from there, and this composer stays out of the way.
   remote?: boolean;
   remotePhase?: 'connecting' | 'active' | 'failed';
-  compacting?: boolean; // o CLI está condensando o contexto agora
-  sessionId?: string; // id do transcript (casa com SessionInfo.id); vem do 'tabs'
+  compacting?: boolean; // the CLI is condensing the context right now
+  sessionId?: string; // transcript id (matches SessionInfo.id); comes from 'tabs'
+  /**
+   * The folder this conversation runs in. Per tab, not per window: the CLI keeps
+   * conversations, permissions and directives per folder, so the tab has to say which one
+   * it is on.
+   */
+  cwd?: string;
   session?: { sessionId: string; model?: string; cwd?: string; mode?: string };
   items: TimelineItem[];
   historyLoaded?: boolean; // 1ª mensagem 'history' já chegou (timeline pronta p/ pintar)
@@ -207,8 +213,8 @@ export function reducer(state: UiState, action: Action): UiState {
       const tabs = msg.tabs.map((info) => {
         const prev = existing.get(info.id);
         return prev
-          ? { ...prev, title: info.title, status: info.status, sessionId: info.sessionId }
-          : { ...emptyTab(info.id, info.title, info.status), sessionId: info.sessionId };
+          ? { ...prev, title: info.title, status: info.status, sessionId: info.sessionId, cwd: info.cwd }
+          : { ...emptyTab(info.id, info.title, info.status), sessionId: info.sessionId, cwd: info.cwd };
       });
       return { ...state, tabs, activeTab: msg.activeTab };
     }

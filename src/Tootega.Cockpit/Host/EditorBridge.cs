@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using EnvDTE;
 using EnvDTE80;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Tootega.Cockpit.Util;
@@ -24,6 +26,9 @@ namespace Tootega.Cockpit.Host
     /// </summary>
     internal sealed class EditorBridge
     {
+        /// <summary>The buffer the shell's folder browser writes into.</summary>
+        private const uint MaxPath = 260;
+
         private readonly IServiceProvider _services;
 
         /// <summary>
@@ -265,10 +270,112 @@ namespace Tootega.Cockpit.Host
             }
         }
 
-        /// <summary>Files matching a fuzzy query, for the composer's @-mention menu.</summary>
-        public Tasks.Task<IReadOnlyList<string>> SearchFilesAsync(string query, int limit = 20)
+        /// <summary>
+        /// Asks the user for a folder, using the shell's own browser.
+        ///
+        /// Returns null when they cancel — which is a decision, not a failure, and must leave
+        /// the tab exactly where it was.
+        /// </summary>
+        public string PickFolder(string initial, string title)
         {
-            var root = WorkspaceCwd();
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            var shell = _services.GetService(typeof(SVsUIShell)) as IVsUIShell;
+            if (shell == null) return null;
+
+            var buffer = Marshal.AllocCoTaskMem((int)MaxPath * sizeof(char));
+
+            try
+            {
+                var browse = new VSBROWSEINFOW[1];
+                browse[0].lStructSize = (uint)Marshal.SizeOf(typeof(VSBROWSEINFOW));
+                browse[0].pwzDlgTitle = title;
+                browse[0].pwzInitialDir = Directory.Exists(initial) ? initial : null;
+                browse[0].pwzDirName = buffer;
+                browse[0].nMaxDirName = MaxPath;
+
+                var hr = shell.GetDirectoryViaBrowseDlg(browse);
+
+                // Cancelling reports this rather than a folder.
+                if (hr == VSConstants.OLE_E_PROMPTSAVECANCELLED) return null;
+                if (Microsoft.VisualStudio.ErrorHandler.Failed(hr)) return null;
+
+                var picked = Marshal.PtrToStringUni(browse[0].pwzDirName);
+                return string.IsNullOrWhiteSpace(picked) ? null : picked;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("editor: the folder browser failed", ex);
+                return null;
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(buffer);
+            }
+        }
+
+        /// <summary>
+        /// The folders worth offering as one click: the solution's, and each project's.
+        ///
+        /// Most of the time the folder a user wants for a second tab is a project inside the
+        /// solution they already have open, and browsing for it is needless friction.
+        /// </summary>
+        public IReadOnlyList<string> SuggestedFolders()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            var folders = new List<string>();
+
+            void Add(string path)
+            {
+                if (string.IsNullOrWhiteSpace(path)) return;
+
+                try
+                {
+                    if (!Directory.Exists(path)) return;
+                    var full = Path.GetFullPath(path);
+                    if (!folders.Contains(full, StringComparer.OrdinalIgnoreCase)) folders.Add(full);
+                }
+                catch
+                {
+                    // A project can report a path this machine cannot resolve; skip it.
+                }
+            }
+
+            Add(WorkspaceCwd());
+
+            try
+            {
+                var solution = Dte()?.Solution;
+                if (solution == null) return folders;
+
+                foreach (Project project in solution.Projects)
+                {
+                    try
+                    {
+                        // Solution folders have no file of their own.
+                        if (string.IsNullOrEmpty(project.FullName)) continue;
+                        Add(Path.GetDirectoryName(project.FullName));
+                    }
+                    catch
+                    {
+                        // Unloaded and virtual projects throw here; the rest still count.
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("editor: could not enumerate the projects: " + ex.Message);
+            }
+
+            return folders;
+        }
+
+        /// <summary>Files matching a fuzzy query, for the composer's @-mention menu.</summary>
+        /// <param name="root">The folder to search — the tab's, not the window's.</param>
+        public Tasks.Task<IReadOnlyList<string>> SearchFilesAsync(string query, string root, int limit = 20)
+        {
+            if (string.IsNullOrEmpty(root)) root = WorkspaceCwd();
 
             return Tasks.Task.Run<IReadOnlyList<string>>(() =>
             {
@@ -350,11 +457,11 @@ namespace Tootega.Cockpit.Host
         /// absolute otherwise. Quoted only when it contains a space, since the quotes would
         /// otherwise be noise in the prompt.
         /// </summary>
-        public string QuoteResolved(string absolutePath)
+        public string QuoteResolved(string absolutePath, string root = null)
         {
             if (string.IsNullOrEmpty(absolutePath)) return string.Empty;
 
-            var path = MakeRelative(absolutePath);
+            var path = MakeRelative(absolutePath, root);
             return path.IndexOf(' ') >= 0 ? "\"" + path + "\"" : path;
         }
 

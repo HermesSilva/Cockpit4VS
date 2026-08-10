@@ -5600,3 +5600,71 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ---------------------------------------------------------------------------
+   Folder bar — which folder this tab's conversation runs in.
+
+   A thin strip, deliberately quiet: it is standing information, not a control
+   competing with the composer. It only earns attention when the user is asking
+   themselves "where is this conversation running?".
+   --------------------------------------------------------------------------- */
+.folderbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editorWidget-background, transparent);
+  font-size: 10.5px;
+  min-width: 0;
+}
+.folderbar-tip {
+  min-width: 0;
+}
+.folderbar-path {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 1px 0;
+  background: transparent;
+  border: none;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  min-width: 0;
+}
+.folderbar-path:hover .folderbar-name {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: underline;
+}
+.folderbar-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  /* The folder yellow, as in the hub, so the same thing reads the same way. */
+  color: var(--vscode-charts-yellow, #e6b450);
+}
+.folderbar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folderbar-change {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 6px;
+  background: transparent;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 3px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  cursor: pointer;
+}
+.folderbar-change:hover:not(:disabled) {
+  color: var(--vscode-foreground);
+  border-color: var(--vscode-focusBorder);
+}
+.folderbar-change:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

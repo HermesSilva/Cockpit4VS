@@ -145,6 +145,12 @@ namespace Tootega.Cockpit.Protocol
         public const string CloseTab = "closeTab";
         public const string SwitchTab = "switchTab";
 
+        /// <summary>
+        /// Moves a tab to another folder. With no path the host asks for one, since the
+        /// webview cannot show a folder picker.
+        /// </summary>
+        public const string SetTabCwd = "setTabCwd";
+
         // CLI and account
         public const string InstallCli = "installCli";
         public const string UpdateCli = "updateCli";

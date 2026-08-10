@@ -20,9 +20,20 @@ namespace Tootega.Cockpit.Host
         {
             public string Title;
             public string Status = "idle";
+
+            /// <summary>
+            /// The folder this conversation runs in.
+            ///
+            /// Per tab, not per IDE instance: the CLI stores conversations, permissions and
+            /// CLAUDE.md directives per folder, so a tab that borrowed the window's folder
+            /// would silently change context whenever the user opened another solution — and
+            /// would list conversations that do not belong to it.
+            /// </summary>
+            public string Cwd;
         }
 
         private readonly Func<string, CockpitSession> _createSession;
+        private readonly Func<string> _defaultCwd;
         private readonly Dictionary<string, CockpitSession> _sessions = new Dictionary<string, CockpitSession>(StringComparer.Ordinal);
         private readonly Dictionary<string, TabMeta> _meta = new Dictionary<string, TabMeta>(StringComparer.Ordinal);
         private readonly List<string> _order = new List<string>();
@@ -33,9 +44,11 @@ namespace Tootega.Cockpit.Host
         private int _sequence;
 
         /// <param name="createSession">Builds a session bound to the given tab id.</param>
-        public TabRegistry(Func<string, CockpitSession> createSession)
+        /// <param name="defaultCwd">The folder a new tab starts in — normally the IDE's.</param>
+        public TabRegistry(Func<string, CockpitSession> createSession, Func<string> defaultCwd)
         {
             _createSession = createSession ?? throw new ArgumentNullException(nameof(createSession));
+            _defaultCwd = defaultCwd ?? throw new ArgumentNullException(nameof(defaultCwd));
         }
 
         public string ActiveTab { get; private set; }
@@ -51,12 +64,15 @@ namespace Tootega.Cockpit.Host
         /// <summary>Raised when the tab list or any tab's title/status changed.</summary>
         public event EventHandler Changed;
 
-        public string CreateTab()
+        /// <param name="cwd">The tab's folder; the default when null or missing.</param>
+        public string CreateTab(string cwd = null)
         {
             var tabId = "tab-" + (++_sequence);
 
+            // The metadata comes first because the session reads its folder from it as it is
+            // being built.
+            _meta[tabId] = new TabMeta { Cwd = Resolve(cwd) };
             _sessions[tabId] = _createSession(tabId);
-            _meta[tabId] = new TabMeta();
             _order.Add(tabId);
             ActiveTab = tabId;
 
@@ -148,6 +164,78 @@ namespace Tootega.Cockpit.Host
 
         public bool AnyBusy() => _sessions.Values.Any(s => s.Busy);
 
+        // --- Folders ---
+
+        /// <summary>The tab's folder. Safe from any thread, since sessions ask for it per turn.</summary>
+        public string Cwd(string tabId)
+        {
+            return tabId != null && _meta.TryGetValue(tabId, out var meta) && meta.Cwd != null
+                ? meta.Cwd
+                : Resolve(null);
+        }
+
+        /// <summary>
+        /// Moves a tab to another folder.
+        ///
+        /// The conversation cannot follow: its transcript, its permissions and its directives
+        /// all live in the old folder. So the session is cleared and restarted in the new one,
+        /// which is honest about what changed instead of continuing under a context that no
+        /// longer applies.
+        /// </summary>
+        public bool SetCwd(string tabId, string cwd)
+        {
+            if (!_meta.TryGetValue(tabId, out var meta)) return false;
+
+            var resolved = Resolve(cwd);
+            if (string.Equals(meta.Cwd, resolved, StringComparison.OrdinalIgnoreCase)) return false;
+
+            meta.Cwd = resolved;
+
+            if (_sessions.TryGetValue(tabId, out var session))
+            {
+                session.ClearConversation();
+            }
+
+            // The title described the old conversation.
+            meta.Title = null;
+
+            Changed?.Invoke(this, EventArgs.Empty);
+            return true;
+        }
+
+        /// <summary>The folders the open tabs use, each once, in tab order.</summary>
+        public IReadOnlyList<string> Folders()
+        {
+            return _order
+                .Select(Cwd)
+                .Where(cwd => !string.IsNullOrEmpty(cwd))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        /// <summary>
+        /// A usable folder, whatever was asked for.
+        ///
+        /// The CLI will not start without a real directory, and refusing to open a tab because
+        /// a folder was renamed would be worse than falling back to the IDE's.
+        /// </summary>
+        private string Resolve(string cwd)
+        {
+            if (!string.IsNullOrWhiteSpace(cwd))
+            {
+                try
+                {
+                    if (System.IO.Directory.Exists(cwd)) return System.IO.Path.GetFullPath(cwd);
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug("tabs: unusable folder '" + cwd + "': " + ex.Message);
+                }
+            }
+
+            return _defaultCwd();
+        }
+
         // --- Drafts ---
 
         public string Draft(string tabId)
@@ -174,6 +262,7 @@ namespace Tootega.Cockpit.Host
                     Title = _meta.TryGetValue(id, out var meta) ? meta.Title : null,
                     Status = _meta.TryGetValue(id, out var m) ? m.Status : "idle",
                     SessionId = _sessions[id].SessionId ?? _sessions[id].ResumeId,
+                    Cwd = Cwd(id),
                 })
                 .ToList();
         }

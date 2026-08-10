@@ -14,6 +14,10 @@ namespace Tootega.Cockpit.Host
     /// The transcripts belong to the CLI. This class only reads them, and cuts them when the
     /// user asks — which is why renames are stored on our side instead of being written into
     /// someone else's file.
+    ///
+    /// Every operation takes the folder explicitly. Conversations are stored per folder by the
+    /// CLI, and each tab has its own folder, so there is no single "current" one to fall back
+    /// on — an implicit default would sooner or later delete from the wrong folder.
     /// </summary>
     internal sealed class SessionLibrary
     {
@@ -21,19 +25,17 @@ namespace Tootega.Cockpit.Host
 
         private readonly SessionStore _store;
         private readonly StateStore _state;
-        private readonly Func<string> _cwd;
 
-        public SessionLibrary(SessionStore store, StateStore state, Func<string> cwd)
+        public SessionLibrary(SessionStore store, StateStore state)
         {
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _state = state ?? throw new ArgumentNullException(nameof(state));
-            _cwd = cwd ?? throw new ArgumentNullException(nameof(cwd));
         }
 
         /// <summary>The folder's conversations, with any user rename applied.</summary>
-        public IReadOnlyList<SessionInfo> List()
+        public IReadOnlyList<SessionInfo> List(string cwd)
         {
-            var sessions = _store.ListSessions(_cwd());
+            var sessions = _store.ListSessions(cwd);
             var titles = Titles();
             if (titles.Count == 0) return sessions;
 
@@ -45,17 +47,17 @@ namespace Tootega.Cockpit.Host
             return sessions;
         }
 
-        public string LatestSessionId() => _store.LatestSessionId(_cwd());
+        public string LatestSessionId(string cwd) => _store.LatestSessionId(cwd);
 
-        public IReadOnlyList<HistoryItem> Transcript(string sessionId)
+        public IReadOnlyList<HistoryItem> Transcript(string cwd, string sessionId)
         {
-            return _store.LoadTranscript(_cwd(), sessionId);
+            return _store.LoadTranscript(cwd, sessionId);
         }
 
-        public string TitleOf(string sessionId)
+        public string TitleOf(string cwd, string sessionId)
         {
             if (Titles().TryGetValue(sessionId ?? string.Empty, out var renamed)) return renamed;
-            return List().FirstOrDefault(s => s.Id == sessionId)?.Title;
+            return List(cwd).FirstOrDefault(s => s.Id == sessionId)?.Title;
         }
 
         /// <summary>
@@ -64,6 +66,9 @@ namespace Tootega.Cockpit.Host
         /// Stored beside our own state rather than in the transcript: the file and its
         /// generated title belong to the CLI, and rewriting them would put us in the business
         /// of maintaining someone else's format.
+        ///
+        /// Keyed by session id alone, without the folder: the id is already unique across
+        /// folders, and a rename should survive a conversation being resumed from elsewhere.
         /// </summary>
         public void Rename(string sessionId, string name)
         {
@@ -77,9 +82,9 @@ namespace Tootega.Cockpit.Host
             _state.Set(TitlesKey, titles);
         }
 
-        public bool Delete(string sessionId)
+        public bool Delete(string cwd, string sessionId)
         {
-            var deleted = _store.DeleteSession(_cwd(), sessionId);
+            var deleted = _store.DeleteSession(cwd, sessionId);
             if (!deleted) return false;
 
             var titles = Titles();
@@ -87,10 +92,23 @@ namespace Tootega.Cockpit.Host
             return true;
         }
 
-        public int DeleteAll()
+        /// <summary>
+        /// Deletes every conversation of one folder.
+        ///
+        /// Only that folder's renames are forgotten with it; the other folders' conversations
+        /// are still there and must keep their names.
+        /// </summary>
+        public int DeleteAll(string cwd)
         {
-            var removed = _store.DeleteAllSessions(_cwd());
-            _state.Set(TitlesKey, new Dictionary<string, string>(StringComparer.Ordinal));
+            var ids = List(cwd).Select(s => s.Id).ToList();
+
+            var removed = _store.DeleteAllSessions(cwd);
+
+            var titles = Titles();
+            var changed = false;
+            foreach (var id in ids) changed |= titles.Remove(id);
+            if (changed) _state.Set(TitlesKey, titles);
+
             return removed;
         }
 
@@ -100,10 +118,10 @@ namespace Tootega.Cockpit.Host
         /// Irreversible, and it cuts the CLI's file — so it refuses rather than guessing when
         /// the target cannot be identified.
         /// </summary>
-        public bool Rewind(string sessionId, string uuid)
+        public bool Rewind(string cwd, string sessionId, string uuid)
         {
             if (string.IsNullOrEmpty(sessionId) || string.IsNullOrEmpty(uuid)) return false;
-            return _store.TruncateTranscriptAt(_cwd(), sessionId, uuid);
+            return _store.TruncateTranscriptAt(cwd, sessionId, uuid);
         }
 
         private Dictionary<string, string> Titles()

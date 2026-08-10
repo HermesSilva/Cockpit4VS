@@ -563,6 +563,12 @@ namespace Tootega.Cockpit.Protocol
         public string Status { get; set; }
         /// <summary>The transcript id, matching <see cref="SessionInfo.Id"/>.</summary>
         public string SessionId { get; set; }
+
+        /// <summary>
+        /// The folder this tab's conversation runs in. Shown on the tab so two tabs on
+        /// different folders are told apart at a glance, rather than by their titles.
+        /// </summary>
+        public string Cwd { get; set; }
     }
 
     /// <summary>

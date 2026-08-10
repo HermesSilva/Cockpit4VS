@@ -39,6 +39,10 @@ namespace Tootega.Cockpit.Host
             var tabId = _host.Tabs.EnsureActiveTab();
             var session = _host.Tabs.SessionFor(tabId);
 
+            // Resolved once per message: nearly every handler below is scoped to the folder of
+            // the tab the message came from, never to the window's.
+            var cwd = _host.Tabs.Cwd(tabId);
+
             switch (message.Kind)
             {
                 case WebviewMessageKinds.Init:
@@ -140,11 +144,11 @@ namespace Tootega.Cockpit.Host
                 // --- Saved contexts ---
 
                 case WebviewMessageKinds.ListSessions:
-                    _host.SendSessions();
+                    _host.SendSessions(tabId);
                     return;
 
                 case WebviewMessageKinds.ResumeSession:
-                    OpenSession(message.GetString("sessionId"));
+                    OpenSession(tabId, message.GetString("sessionId"));
                     return;
 
                 case WebviewMessageKinds.ReloadSession:
@@ -153,7 +157,7 @@ namespace Tootega.Cockpit.Host
 
                 case WebviewMessageKinds.RenameSession:
                     _host.Library.Rename(message.GetString("sessionId"), message.GetString("name"));
-                    _host.SendSessions();
+                    _host.SendSessions(tabId);
                     return;
 
                 case WebviewMessageKinds.DeleteSession:
@@ -162,26 +166,35 @@ namespace Tootega.Cockpit.Host
                     // the transcript and the deleted context comes back.
                     var id = message.GetString("sessionId");
                     _host.DetachLiveSessions(id);
-                    _host.Library.Delete(id);
-                    _host.SendSessions();
+                    _host.Library.Delete(cwd, id);
+                    _host.SendSessions(tabId);
                     return;
                 }
 
                 case WebviewMessageKinds.DeleteAllSessions:
-                    _host.DetachLiveSessions(all: true);
-                    _host.Library.DeleteAll();
-                    _host.SendSessions();
+                    // Only this tab's folder: the other tabs' conversations are not the user's
+                    // to lose from here.
+                    _host.DetachLiveSessions(all: true, cwd: cwd);
+                    _host.Library.DeleteAll(cwd);
+                    _host.SendSessions(tabId);
                     return;
 
                 // --- Tabs ---
 
                 case WebviewMessageKinds.NewTab:
                 {
-                    var created = _host.Tabs.CreateTab();
+                    // A new tab inherits the folder of the one it was opened from, which is
+                    // almost always the folder the user is still thinking about.
+                    var created = _host.Tabs.CreateTab(message.GetString("cwd") ?? cwd);
                     _host.SendConfig();
                     _host.Post(HostMessages.History(new List<HistoryItem>()), created);
+                    _host.SendSessions(created);
                     return;
                 }
+
+                case WebviewMessageKinds.SetTabCwd:
+                    SetTabCwd(message.GetString("tabId") ?? tabId, message.GetString("path"));
+                    return;
 
                 case WebviewMessageKinds.CloseTab:
                 {
@@ -199,6 +212,9 @@ namespace Tootega.Cockpit.Host
                     if (!_host.Tabs.SetActive(target)) return;
 
                     _host.SendConfig();
+                    // The history panel follows the tab, since it lists that folder's
+                    // conversations and the folder may have just changed.
+                    _host.SendSessions(target);
                     _host.ReplayTab(target, force: true);
                     return;
                 }
@@ -250,7 +266,7 @@ namespace Tootega.Cockpit.Host
                 case WebviewMessageKinds.ResolvePaths:
                 {
                     var payload = message.As<ResolvePathsPayload>();
-                    _host.Post(HostMessages.ResolvedPath(payload.RequestId, JoinResolved(payload.AbsPaths)), tabId);
+                    _host.Post(HostMessages.ResolvedPath(payload.RequestId, JoinResolved(payload.AbsPaths, cwd)), tabId);
                     return;
                 }
 
@@ -259,14 +275,14 @@ namespace Tootega.Cockpit.Host
                     // The webview sandbox does not expose a pasted file's path, so the host
                     // reads the clipboard itself.
                     var requestId = message.GetString("requestId");
-                    _host.Post(HostMessages.ResolvedPath(requestId, JoinResolved(ClipboardFiles.Read())), tabId);
+                    _host.Post(HostMessages.ResolvedPath(requestId, JoinResolved(ClipboardFiles.Read(), cwd)), tabId);
                     return;
                 }
 
                 case WebviewMessageKinds.MentionSearch:
                 {
                     var requestId = message.GetString("requestId");
-                    var matches = await _host.Editor.SearchFilesAsync(message.GetString("query"));
+                    var matches = await _host.Editor.SearchFilesAsync(message.GetString("query"), cwd);
                     await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                     _host.Post(HostMessages.MentionResults(requestId, matches), tabId);
                     return;
@@ -296,7 +312,7 @@ namespace Tootega.Cockpit.Host
             _host.Post(HostMessages.Ready());
             _host.SendConfig();
             _host.PostTabs();
-            _host.SendSessions();
+            _host.SendSessions(tabId);
             _host.PostTaskTimings(tabId);
 
             // A freshly mounted panel always replays, even mid-turn: otherwise reopening a
@@ -347,9 +363,9 @@ namespace Tootega.Cockpit.Host
             var text = payload?.Text ?? string.Empty;
 
             // The minimum-effort gate is resolved NOW from the CLAUDE.md that applies to this
-            // folder. It is not configuration — different folders can demand different things —
-            // and below the floor without confirmation, nothing is sent.
-            var cwd = _host.Editor.WorkspaceCwd();
+            // tab's folder. It is not configuration — different folders can demand different
+            // things — and below the floor without confirmation, nothing is sent.
+            var cwd = _host.Tabs.Cwd(tabId);
             var minimum = RepoDirectives.ResolveMinEffort(cwd, cwd);
             var effort = _host.TimingScope(session).Effort;
 
@@ -407,14 +423,35 @@ namespace Tootega.Cockpit.Host
             _host.SendConfig();
         }
 
-        private void OpenSession(string sessionId)
+        private void OpenSession(string tabId, string sessionId)
         {
             if (string.IsNullOrEmpty(sessionId)) return;
 
-            var tabId = _host.Tabs.EnsureActiveTab();
             _host.Tabs.SessionFor(tabId).Resume(sessionId);
-            _host.Tabs.SetTitle(tabId, _host.Library.TitleOf(sessionId));
+            _host.Tabs.SetTitle(tabId, _host.Library.TitleOf(_host.Tabs.Cwd(tabId), sessionId));
             _host.ReplayTab(tabId, force: true);
+        }
+
+        /// <summary>
+        /// Moves a tab to another folder, asking for one when the webview did not name it.
+        ///
+        /// The conversation does not survive the move, so the new folder's history is sent
+        /// right after: the tab lands somewhere the user can pick up from, not empty.
+        /// </summary>
+        private void SetTabCwd(string tabId, string path)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            var target = string.IsNullOrWhiteSpace(path)
+                ? _host.Editor.PickFolder(_host.Tabs.Cwd(tabId), "Folder for this conversation")
+                : path;
+
+            // Cancelled, or already there.
+            if (target == null || !_host.Tabs.SetCwd(tabId, target)) return;
+
+            _host.Post(HostMessages.History(new List<HistoryItem>()), tabId);
+            _host.SendSessions(tabId);
+            _host.SendConfig();
         }
 
         /// <summary>
@@ -428,18 +465,20 @@ namespace Tootega.Cockpit.Host
             var session = _host.Tabs.SessionFor(tabId);
             if (session.SessionId != null || session.ResumeId != null) return;
 
-            var latest = _host.Library.LatestSessionId();
+            var cwd = _host.Tabs.Cwd(tabId);
+
+            var latest = _host.Library.LatestSessionId(cwd);
             if (latest == null) return;
 
             session.Resume(latest);
-            _host.Tabs.SetTitle(tabId, _host.Library.TitleOf(latest));
+            _host.Tabs.SetTitle(tabId, _host.Library.TitleOf(cwd, latest));
             _host.ReplayTab(tabId, force: true);
         }
 
-        private string JoinResolved(IEnumerable<string> paths)
+        private string JoinResolved(IEnumerable<string> paths, string cwd)
         {
             if (paths == null) return string.Empty;
-            return string.Join(" ", System.Linq.Enumerable.Select(paths, p => _host.Editor.QuoteResolved(p)));
+            return string.Join(" ", System.Linq.Enumerable.Select(paths, p => _host.Editor.QuoteResolved(p, cwd)));
         }
     }
 }

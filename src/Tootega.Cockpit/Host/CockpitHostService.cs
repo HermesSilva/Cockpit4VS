@@ -60,9 +60,9 @@ namespace Tootega.Cockpit.Host
             _editor = new EditorBridge(package);
             _models = new ModelCatalog(_state);
             _cliStatus = new CliStatusReporter(_engines);
-            _library = new SessionLibrary(new SessionStore(), _state, () => _editor.WorkspaceCwd());
+            _library = new SessionLibrary(new SessionStore(), _state);
 
-            _tabs = new TabRegistry(CreateSession);
+            _tabs = new TabRegistry(CreateSession, () => _editor.WorkspaceCwd());
             _tabs.Changed += (s, e) => PostTabs();
 
             _router = new CockpitMessageRouter(this);
@@ -147,7 +147,7 @@ namespace Tootega.Cockpit.Host
                         ReplayTab(tabId, force: true);
                 },
 
-                OnResult = () => SendSessions(),
+                OnResult = () => SendSessions(tabId),
 
                 // A permission prompt or a question is waiting: the conversation has to be
                 // visible, or the user is blocked by something they cannot see.
@@ -159,7 +159,7 @@ namespace Tootega.Cockpit.Host
                         Post(HostMessages.SlashCommands(commands), tabId);
 
                     SendConfig();
-                    SendSessions();
+                    SendSessions(tabId);
                 },
 
                 OnAuthRequired = () => Post(HostMessages.AuthRequired(), tabId),
@@ -188,7 +188,11 @@ namespace Tootega.Cockpit.Host
                 },
 
                 ClaudePath = engine => _engines.PathFor(engine ?? _engines.Current),
-                Cwd = () => _editor.WorkspaceCwd(),
+
+                // The tab's folder, read per turn rather than captured: the user can move a tab
+                // to another folder, and the next turn has to start there.
+                Cwd = () => _tabs.Cwd(tabId),
+
                 Engine = () => _engines.Current,
                 EngineServer = () => _engines.TootegaServer,
 
@@ -202,7 +206,7 @@ namespace Tootega.Cockpit.Host
 
                 // English-only: the questions come back in the same language as the UI.
                 AskLanguage = () => "en",
-                ExtraSystemPrompt = ExtraSystemPrompt,
+                ExtraSystemPrompt = () => ExtraSystemPrompt(tabId),
             };
 
             return new CockpitSession(hooks, _statsStore, _skillIndex);
@@ -214,10 +218,10 @@ namespace Tootega.Cockpit.Host
         /// Expansion drops lines mentioning a shell or folder that does not exist here: a table
         /// describing WSL on a machine without WSL would actively mislead the agent.
         /// </summary>
-        private string ExtraSystemPrompt()
+        private string ExtraSystemPrompt(string tabId)
         {
             if (!_settings.SystemPromptEnabled) return null;
-            return SystemPromptTemplate.Build(_settings.SystemPromptText, _editor.WorkspaceCwd());
+            return SystemPromptTemplate.Build(_settings.SystemPromptText, _tabs.Cwd(tabId));
         }
 
         private static string DescribeTurnError(TurnError error)
@@ -242,7 +246,19 @@ namespace Tootega.Cockpit.Host
 
         internal void PostTabs() => Post(HostMessages.Tabs(_tabs.Snapshot(), _tabs.ActiveTab));
 
-        internal void SendSessions() => Post(HostMessages.Sessions(_library.List(), _editor.WorkspaceCwd()));
+        /// <summary>
+        /// Sends a tab the conversations of ITS folder.
+        ///
+        /// Scoped to the tab, not broadcast: two tabs on different folders have different
+        /// histories, and one list for both would offer conversations that cannot be resumed
+        /// where they are shown.
+        /// </summary>
+        internal void SendSessions(string tabId = null)
+        {
+            var tab = tabId != null && _tabs.Has(tabId) ? tabId : _tabs.EnsureActiveTab();
+            var cwd = _tabs.Cwd(tab);
+            Post(HostMessages.Sessions(_library.List(cwd), cwd), tab);
+        }
 
         internal void SendConfig()
         {
@@ -296,7 +312,7 @@ namespace Tootega.Cockpit.Host
                 return;
             }
 
-            Post(HostMessages.History(_library.Transcript(sessionId)), tabId);
+            Post(HostMessages.History(_library.Transcript(_tabs.Cwd(tabId), sessionId)), tabId);
             Post(HostMessages.Stats(session.Snapshot()), tabId);
             session.SendTimeline();
         }
@@ -320,10 +336,17 @@ namespace Tootega.Cockpit.Host
         /// Without it the open session still owns the file and rewrites it, and the context the
         /// user just deleted reappears in the hub.
         /// </summary>
-        internal void DetachLiveSessions(string sessionId = null, bool all = false)
+        /// <param name="cwd">
+        /// When given, only tabs on that folder are detached — a mass delete is scoped to one
+        /// folder, and clearing conversations that live somewhere else would be destructive
+        /// beyond what the user asked for.
+        /// </param>
+        internal void DetachLiveSessions(string sessionId = null, bool all = false, string cwd = null)
         {
             foreach (var entry in _tabs.Entries)
             {
+                if (cwd != null && !string.Equals(_tabs.Cwd(entry.Key), cwd, StringComparison.OrdinalIgnoreCase)) continue;
+
                 var id = entry.Value.SessionId ?? entry.Value.ResumeId;
                 if (!all && id != sessionId) continue;
 
@@ -414,12 +437,15 @@ namespace Tootega.Cockpit.Host
 
         public void ReopenClosed()
         {
-            var latest = _library.LatestSessionId();
+            // The IDE's folder, because there is no tab yet to take one from.
+            var cwd = _editor.WorkspaceCwd();
+
+            var latest = _library.LatestSessionId(cwd);
             if (latest == null) return;
 
-            var tabId = _tabs.CreateTab();
+            var tabId = _tabs.CreateTab(cwd);
             _tabs.SessionFor(tabId).Resume(latest);
-            _tabs.SetTitle(tabId, _library.TitleOf(latest));
+            _tabs.SetTitle(tabId, _library.TitleOf(cwd, latest));
             ReplayTab(tabId, force: true);
             ShowChatWindow();
         }
