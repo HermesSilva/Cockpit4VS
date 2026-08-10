@@ -1,11 +1,11 @@
-// Formato da resposta de um AskUserQuestion: as escolhas, separadas por vírgula, seguidas do
-// texto que o usuário acrescentou àquela pergunta. Um único lugar define o separador — o modal
-// escreve, o card da timeline lê.
+// The shape of an AskUserQuestion answer: the choices, comma separated, followed by the text
+// the user added to that question. One place defines the separator — the modal writes it, the
+// timeline card reads it.
 
-// As escolhas ficam na primeira linha; o texto acrescentado, nas seguintes.
+// The choices sit on the first line; the added text on the ones after it.
 export const ANSWER_NOTE_SEP = '\n';
 
-/** Junta escolhas e texto acrescentado. Só o texto também é resposta válida. */
+/** Joins choices and added text. Text alone is a valid answer too. */
 export function joinAnswer(choices: string, note: string): string {
   const n = note.trim();
   if (!n) return choices;
@@ -13,8 +13,8 @@ export function joinAnswer(choices: string, note: string): string {
 }
 
 /**
- * Desfaz o join. Só corta quando a primeira linha são de fato escolhas conhecidas: uma resposta
- * puramente escrita — mesmo com várias linhas — segue inteira (o card a mostra como "Outro").
+ * Undoes the join. It only cuts when the first line really is a set of known choices: a purely
+ * written answer — even across several lines — stays whole, and the card shows it as "Other".
  */
 export function splitAnswerNote(ans: string, known: Set<string>): { core: string; note?: string } {
   const at = ans.indexOf(ANSWER_NOTE_SEP);

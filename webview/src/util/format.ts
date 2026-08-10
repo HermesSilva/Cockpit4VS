@@ -19,8 +19,8 @@ export function fmtCompact(n: number): string {
   return String(Math.round(v));
 }
 
-// Tokens com uma casa no milhar (1928 -> "1.9k"). Diferente de fmtCompact, que arredonda
-// para "2k": aqui a casa decimal importa para comparar o custo entre skills. "—" = sem valor.
+// Tokens with one decimal at the thousand (1928 becomes "1.9k"). Unlike fmtCompact, which
+// rounds to "2k": the decimal matters here for comparing cost between skills. "—" means no value.
 export function fmtTk(n?: number): string {
   if (n == null) return '—';
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);

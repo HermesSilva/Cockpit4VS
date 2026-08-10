@@ -96,11 +96,11 @@ function ServerCard({ t, s }: { t: Translator; s: McpServerInfo }) {
       ) : (
         s.target && <div className="mcp-target">{s.target}</div>
       )}
-      {/* init mcp_server_errors: o CLI recusou o servidor na validação de config. */}
+      {/* init mcp_server_errors: the CLI refused the server while validating the config. */}
       {s.error && (
         <div className="usage-alert mcp-error">{t('mcp.configError', s.error)}</div>
       )}
-      {/* Servidor pendente não é falha: o CLI está esperando você aprovar o workspace. */}
+      {/* A pending server is not a failure: the CLI is waiting for the workspace to be approved. */}
       {s.status === 'pending' && <div className="usage-alert">{t('mcp.pendingHelp')}</div>}
       {s.tools.length > 0 ? (
         <>

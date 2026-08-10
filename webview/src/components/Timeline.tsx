@@ -64,11 +64,11 @@ interface Props {
   userName?: string;
   todos: TodoItem[];
   answers?: Record<string, string>;
-  busy?: boolean; // turno em andamento: mostra o indicador de atividade no fim
-  stats?: StatsSnapshot; // tokens enviados/recebidos p/ o contador do indicador
+  busy?: boolean; // a turn in flight, so the activity indicator shows at the end
+  stats?: StatsSnapshot; // tokens sent and received, for the indicator's counter
   onRewind?: (userIndex: number) => void; // rewind to this prompt (removing it)
   verbosity?: string; // verbose|necessary|dialogo|quiet — filters the display
-  compacting?: boolean; // o CLI está condensando o contexto (S11)
+  compacting?: boolean; // the CLI is condensing the context (S11)
 }
 
 // Groups items into turns: each user message and, after it, the contiguous
@@ -76,10 +76,10 @@ interface Props {
 type Group =
   | { kind: 'user'; item: UserItem }
   | { kind: 'claude'; items: (AssistantItem | ToolItem)[] }
-  // Injeção de hook: faixa própria. Não pertence a nenhum turno — o SessionStart acontece
-  // antes do primeiro prompt e agrupá-lo criaria uma bolha do Claude vazia.
+  // A hook injection: a strip of its own. It belongs to no turn — SessionStart happens before
+  // the first prompt, and grouping it would create an empty Claude bubble.
   | { kind: 'hook'; item: HookItem }
-  // Aviso do engine: faixa própria, pelo mesmo motivo do hook — pode chegar fora de turno.
+  // An engine notice: a strip of its own, for the hook's reason — it can arrive between turns.
   | { kind: 'notice'; item: NoticeItem };
 
 function groupItems(items: TimelineItem[]): Group[] {
@@ -395,7 +395,7 @@ function ActivityIndicator({
         <span className="activity-up" title={t('activity.sent')}>↑ {fmtCompact(sent)}</span>
         <span className="activity-down" title={t('activity.received')}>↓ {fmtCompact(received)}</span>
       </span>
-      {/* Compactando: o turno não travou, o CLI está condensando o contexto. */}
+      {/* Compacting: the turn is not stuck, the CLI is condensing the context. */}
       <span className="activity-label">
         {compacting ? t('activity.compacting') : cmd || t('activity.working')}
       </span>
@@ -480,16 +480,16 @@ function isEmptyAssistant(it: TimelineItem): boolean {
  *   quiet=final text only. Ask/checklist always; user always.
  */
 function visibleInTimeline(it: TimelineItem, verbosity: string, lastAssistId?: string): boolean {
-  if (isEmptyAssistant(it)) return false; // nada a dizer: não vira bolha vazia
+  if (isEmptyAssistant(it)) return false; // nothing to say: it must not become an empty bubble
   if (verbosity === 'verbose') return true;
   if (it.kind === 'user') return true;
   if (it.kind === 'assistant') {
     if (verbosity === 'dialogo') return true; // all the text
     return it.id === lastAssistId; // necessary/quiet: only the final one
   }
-  // Injeção de hook: custo real no contexto, some junto com as ferramentas no modo quiet.
+  // A hook injection is real cost in the context; it hides with the tools in quiet mode.
   if (it.kind === 'hook') return verbosity !== 'quiet';
-  // Aviso do engine aparece em qualquer verbosidade: é a causa de algo que o usuário vai notar.
+  // An engine notice shows at any verbosity: it is the cause of something the user will notice.
   if (it.kind === 'notice') return true;
   // tool
   if (it.name === 'AskUserQuestion' || isTodoToolName(it.name)) return true;
@@ -603,9 +603,9 @@ function ClaudeTurn({
 }
 
 /**
- * Faixa do contexto que um hook injetou. Mostra o hook, a skill reconhecida (quando o corpo
- * casa com um SKILL.md em disco) e o tamanho estimado — o mesmo custo que o card do `Skill`
- * exibe quando a carga vem pelo caminho normal.
+ * The strip for context a hook injected. It shows the hook, the skill recognized when the body
+ * matches a SKILL.md on disk, and the estimated size — the same cost the `Skill` card shows
+ * when the load comes through the normal path.
  */
 function HookBanner({ item, t }: { item: HookItem; t: Translator }) {
   return (
@@ -624,11 +624,11 @@ function HookBanner({ item, t }: { item: HookItem; t: Translator }) {
 }
 
 /**
- * Aviso do engine no meio da sessão: créditos do modo rápido esgotados, modelo de subagente
- * restrito rodando no modelo do pai. Sem esta faixa, o usuário só veria o efeito.
+ * An engine notice mid-session: fast-mode credits exhausted, a restricted subagent model
+ * running on the parent's model. Without this strip the user would only see the effect.
  */
 function NoticeBanner({ item, t }: { item: NoticeItem; t: Translator }) {
-  // Fronteira de compactação: não é aviso, é a MEDIDA do que saiu do contexto.
+  // The compaction boundary: not a warning, but the MEASURE of what left the context.
   const c = item.compaction;
   if (c) {
     const dropped = c.pre !== undefined && c.post !== undefined ? c.pre - c.post : undefined;
@@ -811,8 +811,8 @@ function ToolCard({ items, t, defaultOpen }: { items: ToolItem[]; t: Translator;
             {basename(filePath)}
           </span>
         )}
-        {/* Skill cujo corpo entrou no contexto: o custo fica visível no momento em que
-            acontece, não só no painel. Sem tamanho informado, mostra só o selo. */}
+        {/* A Skill whose body entered the context: the cost is visible the moment it happens,
+            not only in the panel. With no size reported, only the badge shows. */}
         {item.skillLoaded && (
           <span className="tool-skill-load" title={t('skills.legend.active')}>
             ⚡ <span className="tool-skill-name">{item.skillLoaded}</span>
@@ -1030,7 +1030,7 @@ function AskCard({
                 </div>
               )}
             </div>
-            {/* Texto que o usuário acrescentou à escolha (editor por aba do modal). */}
+            {/* Text the user added to the choice, from the modal's per-question editor. */}
             {note && (
               <div className="ask-card-note">
                 <span className="ask-card-note-label">{t('ask.notesCard')}</span>

@@ -40,7 +40,7 @@ export function ScrollMarkers({ scrollRef, items }: Props) {
       if (!el) return;
       const top = el.getBoundingClientRect().top - cTop + c.scrollTop;
       const f = Math.max(0, Math.min(1, top / maxScroll));
-      const center = thumbH / 2 + f * travel; // px dentro do trilho
+      const center = thumbH / 2 + f * travel; // px inside the track
       next.push({
         id: it.id,
         index: idx + 1,

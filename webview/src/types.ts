@@ -40,18 +40,18 @@ export interface ToolItem {
   done: boolean;
   ts?: number; // epoch ms of the tool_use
   endTs?: number; // epoch ms of the tool_result (duration = endTs - ts)
-  // Tool `Skill` cujo corpo entrou no contexto. `skillTokens` é ESTIMATIVA (tamanho da
-  // mensagem que o engine injetou); ausente = carregou, mas sem tamanho informado.
+  // A `Skill` tool whose body entered the context. `skillTokens` is an ESTIMATE of the
+  // message the engine injected; absent means it loaded, but with no size reported.
   skillLoaded?: string;
   skillTokens?: number;
-  // Texto de subagente(s) encaminhado pelo CLI (--forward-subagent-text), acumulado.
-  // Só para a tool Task/Agent: mostra o que o subagente escreveu enquanto trabalhava.
+  // Subagent text forwarded by the CLI (--forward-subagent-text), accumulated.
+  // Only for the Task/Agent tool: it shows what the subagent wrote while working.
   subagentText?: string;
 }
 
 /**
- * Contexto que um HOOK injetou no prompt. Não passa por tool_use nenhum — sem este item o
- * custo (e a skill que entrou por ali) só apareceria no painel, nunca na conversa.
+ * Context a HOOK injected into the prompt. It goes through no tool_use at all — without this
+ * item the cost, and the skill that came in with it, would only show in the panel.
  */
 export interface HookItem {
   kind: 'hook';
@@ -63,18 +63,18 @@ export interface HookItem {
 }
 
 /**
- * Aviso que o engine emitiu no meio da sessão (créditos do modo rápido esgotados, modelo de
- * subagente restrito, …). Não tem tool_use para selar: vira item próprio, senão o efeito
- * chegaria ao usuário sem a causa.
+ * A warning the engine emitted mid-session (fast-mode credits running out, a restricted
+ * subagent model, and so on). It has no tool_use to seal, so it becomes an item of its own —
+ * otherwise the effect would reach the user with no cause.
  */
 export interface NoticeItem {
   kind: 'notice';
   id: string;
   text: string;
-  topic?: string; // subtype do evento, quando o engine informou
+  topic?: string; // the event's subtype, when the engine reported one
   ts?: number;
-  // Fronteira de compactação (S11): o banner mostra quanto foi condensado, traduzido aqui —
-  // o host manda os números crus porque não tem camada de i18n para a linha do tempo.
+  // The compaction boundary (S11): the banner says how much was condensed, worded here —
+  // the host sends raw numbers, since it has no i18n layer of its own for the timeline.
   compaction?: { pre?: number; post?: number; trigger?: string; durationMs?: number };
 }
 
@@ -119,5 +119,5 @@ export interface TodoItem {
   status: 'pending' | 'in_progress' | 'completed';
   activeForm?: string;
   description?: string;
-  id?: number; // número da tarefa quando vem de tools Task* (TaskList "#N", TaskUpdate id)
+  id?: number; // the task's number when it comes from a Task* tool (TaskList "#N", TaskUpdate id)
 }

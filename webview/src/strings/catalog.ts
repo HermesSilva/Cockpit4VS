@@ -96,13 +96,13 @@ export const strings = {
   'voicedict.save': 'Save',
   'plugins.title': 'Plugins',
   'plugins.desc': 'Search, install and remove Claude Code plugins',
-  // Painel Skills (X2): custo de listing por skill + o que já foi acionado
+  // The Skills panel (X2): the listing cost per skill, and which ones have fired
   'skills.title': 'Skills',
   'skills.desc': 'What each skill costs in the context and which ones are already loaded',
   'skills.loading': 'Reading the context…',
   'skills.none': 'No skill reported by the CLI in this session.',
   'skills.hint': 'Open a session and send a message first: the panel reads the running CLI.',
-  // Totais do topo: metadados são MEDIDOS pelo engine; o corpo carregado é estimado.
+  // The totals at the top: metadata is MEASURED by the engine; the loaded body is estimated.
   'skills.tile.count': 'skills',
   'skills.tile.metadata': 'metadata',
   'skills.tile.active': 'loaded',
@@ -114,7 +114,7 @@ export const strings = {
   'skills.group.built-in': 'built-in',
   'skills.group.other': 'plugin',
   'skills.group.all': 'all',
-  // Eixo de OBSERVAÇÃO (o que está no contexto), separado do dropdown de configuração.
+  // The OBSERVATION axis — what is in the context — apart from the configuration dropdown.
   'skills.obs.active': 'loaded',
   'skills.obs.light': 'light',
   'skills.obs.resident': 'off · resident',

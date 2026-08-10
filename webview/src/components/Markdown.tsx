@@ -182,7 +182,7 @@ function isTableSep(line: string): boolean {
   return /^\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?$/.test(t);
 }
 
-/** Alinhamentos por coluna a partir do separador (:--, --:, :-:). */
+/** Per-column alignment, read from the separator row (:--, --:, :-:). */
 function parseAligns(sep: string): Align[] {
   return splitRow(sep).map((c) => {
     const s = c.trim();
@@ -251,7 +251,7 @@ function splitCode(text: string, prefix: string): ReactNode[] {
   });
 }
 
-// --- Auto-link de caminhos de arquivo em texto puro ---
+// --- Auto-linking file paths in plain text ---
 // Extensions recognized when the mention has no path separator.
 const FILE_EXT =
   /\.(?:tsx?|jsx?|mjs|cjs|json|jsonc|md|markdown|css|scss|sass|less|html?|py|rs|go|java|kt|c|h|hpp|cc|cpp|cs|rb|php|sh|bash|zsh|ps1|yml|yaml|toml|xml|txt|sql|vue|svelte|lock|cfg|ini|env|gitignore|svg|png|jpe?g|gif|webp|dockerfile)$/i;

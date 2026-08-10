@@ -8,8 +8,8 @@ interface Props {
   sug: Suggestions;
   loading?: boolean;
   left: number;
-  top: number; // y abaixo da palavra (preferido)
-  anchorTop: number; // y do topo da palavra (p/ inverter pra cima)
+  top: number; // y below the word (preferred)
+  anchorTop: number; // y of the word's top, for flipping upwards
   onPick: (s: string) => void;
   onAdd: () => void;
   onIgnore: () => void;

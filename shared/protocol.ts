@@ -4,9 +4,9 @@ import type { Usage } from './events';
 export interface LimitWindow {
   usedPct?: number; // 0..1 — statusline (always) or stream (only close to the limit)
   resetsAt?: string; // ISO 8601
-  status?: 'allowed' | 'allowed_warning' | 'rejected'; // banda vinda do stream
-  usd?: number; // custo local na janela
-  tokens?: number; // tokens locais na janela
+  status?: 'allowed' | 'allowed_warning' | 'rejected'; // the band reported by the stream
+  usd?: number; // the window's local cost
+  tokens?: number; // the window's local tokens
 }
 
 export interface ContextSlice {
@@ -29,8 +29,8 @@ export interface DenialEvent {
   // rule, tool not allowed, path outside the workspace…). Absent = 'user' (old
   // data, written before the distinction existed).
   source?: 'user' | 'engine';
-  // Motivo. No 'user': o feedback digitado. No 'engine': a mensagem do CLI (desde
-  // 2.1.193 auto mode explains why it denied).
+  // The reason. On 'user' it is the typed feedback; on 'engine' the CLI's own message
+  // (since 2.1.193 auto mode explains why it denied).
   reason?: string;
 }
 
@@ -48,7 +48,7 @@ export interface ModelUsage {
 /** A timeline sample (one point per turn) — the basis of the consumption charts (S10). */
 export interface TimelineSample {
   ts: number; // epoch ms
-  contextUsed: number; // tamanho do prompt (input + cache_*) no turno
+  contextUsed: number; // the turn's prompt size (input + cache_*)
   cacheReadPct: number; // 0..1 — fraction read from the cache this turn (efficiency)
   costUsd: number; // session cost accumulated up to here
   reset?: boolean; // this turn was a cache reset (cold TTL)
@@ -100,8 +100,8 @@ export interface StatsSnapshot {
   peakCacheTokens?: number; // cache size (create+read) at the peak turn
   // REAL session execution time (sum of each prompt's time; excludes idleness)
   activeMs?: number;
-  // --- Vida do cache (TTL de 1h) e keep-alive ---
-  cacheLifeMs?: number; // janela total do cache (1h)
+  // --- Cache life (a 1h TTL) and keep-alive ---
+  cacheLifeMs?: number; // the cache's whole window (1h)
   cacheAgeMs?: number; // age since the last activity (request)
   cacheExpiresInMs?: number; // quanto falta p/ o cache expirar
   cacheExpiresAt?: number; // epoch ms of the expiry — for a live countdown
@@ -114,52 +114,52 @@ export interface StatsSnapshot {
   // Source of the limits: statusline (real complete %) > stream (rate_limit_event:
   // status/reset always, % only close to the limit) > estimate (tokens÷local budget).
   limitsSource?: 'statusline' | 'stream' | 'estimate';
-  // --- Skills (transparência) ---
+  // --- Skills (transparency) ---
   skills?: SkillState[];
-  skillsListingTokens?: number; // categoria "Skills" do get_context_usage (só metadados)
-  skillsTotal?: number; // totalSkills (antes dos overrides)
-  skillsListed?: number; // includedSkills (o que realmente entrou no listing)
-  // Texto que hooks injetaram no contexto desta sessão (agrupado por hook).
+  skillsListingTokens?: number; // the "Skills" category of get_context_usage: metadata only
+  skillsTotal?: number; // totalSkills, before the overrides are applied
+  skillsListed?: number; // includedSkills: what actually made it into the listing
+  // Text hooks injected into this session's context, grouped by hook.
   hookInjections?: HookInjection[];
 }
 
 // --- Skills ---
 
 /**
- * Estados aceitos pelo `skillOverrides` do CLI. Ausente = 'on'.
- *  - 'name-only': lista a skill sem a descrição (custo cai para ~4 tokens).
- *  - 'user-invocable-only': some do listing do modelo, mas /nome continua funcionando.
- *  - 'off': some dos dois.
+ * The states the CLI's `skillOverrides` accepts. Absent means 'on'.
+ *  - 'name-only': lists the skill without its description, which drops the cost to ~4 tokens.
+ *  - 'user-invocable-only': gone from the model's listing, but /name still works.
+ *  - 'off': gone from both.
  */
 export type SkillOverride = 'on' | 'name-only' | 'user-invocable-only' | 'off';
 
-/** Estado de UMA skill: custo de metadados + se o corpo já foi carregado no contexto. */
+/** One skill: what its metadata costs, and whether its body is already in the context. */
 export interface SkillState {
   name: string;
   source?: string; // 'built-in' | 'userSettings' | 'plugin'… (skillFrontmatter.source)
-  metaTokens?: number; // custo do listing desta skill (get_context_usage)
-  listed: boolean; // apareceu no listing da última leitura
-  override?: SkillOverride; // ausente = 'on'
-  // Corpo do SKILL.md injetado nesta sessão. O CLI NÃO emite evento próprio: isso vem
-  // do tool_use `Skill` (invocação pelo modelo), de um /nome enviado pelo Cockpit ou de um
-  // hook cujo texto injetado casa com o corpo do SKILL.md em disco ('hook', inferido).
+  metaTokens?: number; // this skill's listing cost (get_context_usage)
+  listed: boolean; // it appeared in the last reading
+  override?: SkillOverride; // absent means 'on'
+  // The SKILL.md body injected in this session. The CLI emits no event of its own for it:
+  // it comes from a `Skill` tool_use (the model invoking it), from a /name the Cockpit
+  // sent, or from a hook whose injected text matches the SKILL.md on disk ('hook', inferred).
   active?: boolean;
-  activeTokens?: number; // ESTIMATIVA (chars/4). Ausente quando invocada por /nome.
+  activeTokens?: number; // an ESTIMATE (chars/4). Absent when invoked by /name.
   activatedAt?: number;
   invokedBy?: 'model' | 'user' | 'hook';
 }
 
 /**
- * Contexto injetado por um HOOK (`system/hook_response`), agrupado por hook. Vale para
- * qualquer hook — o texto entra no prompt e pesa, seja skill ou não. Quando o texto casa
- * com o corpo de um SKILL.md em disco, `skill` diz qual (inferência, rotulada na UI).
+ * Context injected by a HOOK (`system/hook_response`), grouped by hook. It holds for any
+ * hook — the text enters the prompt and weighs, skill or not. When the text matches a
+ * SKILL.md body on disk, `skill` says which one (an inference, labelled as such in the UI).
  */
 export interface HookInjection {
-  hook: string; // hook_name, ex.: 'SessionStart:startup'
-  event?: string; // hook_event, ex.: 'SessionStart'
-  count: number; // quantas vezes injetou nesta sessão
-  tokens: number; // ESTIMATIVA (chars/4) do total injetado
-  skill?: string; // skill reconhecida pelo corpo, quando houver
+  hook: string; // hook_name, e.g. 'SessionStart:startup'
+  event?: string; // hook_event, e.g. 'SessionStart'
+  count: number; // how many times it injected in this session
+  tokens: number; // an ESTIMATE (chars/4) of everything injected
+  skill?: string; // the skill recognized from the body, when there is one
 }
 
 // --- Plugins (modal "Plugins") ---
@@ -168,8 +168,8 @@ export interface InstalledPlugin {
   version?: string;
   scope?: string; // user | project | local
   enabled: boolean;
-  description?: string; // do manifest plugin.json
-  url?: string; // homepage/repo/author do manifest
+  description?: string; // from the plugin.json manifest
+  url?: string; // the manifest's homepage, repo or author
   kind?: string; // type: skills|agents|commands|mcp|hooks|mixed (from the components)
 }
 export interface AvailablePlugin {
@@ -200,7 +200,7 @@ export interface UsageAccount {
   email?: string;
   orgName?: string;
   plan?: string; // subscriptionType ('max' | 'pro' | …)
-  loginExpiresAt?: number; // epoch ms — validade do login (refresh token)
+  loginExpiresAt?: number; // epoch ms — the login's validity (refresh token)
   // Session flags read from the statusline payload (fast_mode/model/effort/output_style).
   // Provenance is the user's statusline, not the Cockpit's headless session — same nature
   // as the real limits. Absent when the statusline wrapper isn't installed or the cache is stale.
@@ -221,17 +221,17 @@ export interface UsageBucket {
 }
 /** Weekly window restricted to a scope (e.g. one model). The label comes from the server. */
 export interface ScopedBucket extends UsageBucket {
-  label: string; // display_name do escopo (ex.: "Fable", "Sonnet")
+  label: string; // the scope's display_name ("Fable", "Sonnet")
 }
 /** A slice of the usage breakdown (per model or per source). */
 export interface UsageSlice {
-  key: string; // id do modelo, ou 'main' | 'subagent'
+  key: string; // the model id, or 'main' | 'subagent'
   usd: number;
   tokens: number; // tokens NOVOS: input + output + cache-create
   cacheRead: number; // context re-read from the cache (dominates the total; displayed separately)
 }
 
-/** Detalhamento local da janela de 7 dias (sempre estimativa de tabela). */
+/** The local breakdown of the 7-day window — always a table estimate. */
 export interface UsageBreakdown {
   byModel: UsageSlice[];
   bySource: UsageSlice[]; // main vs. subagent (sidechain)
@@ -239,7 +239,7 @@ export interface UsageBreakdown {
 
 /** Context injected by a tool (estimated sum of the tool_results). */
 export interface ToolContextSlice {
-  key: string; // nome da tool; "mcp:<servidor>" ou "skill:<nome>" quando agrupada
+  key: string; // the tool name; "mcp:<server>" or "skill:<name>" when grouped
   calls: number;
   tokens: number;
 }
@@ -254,7 +254,7 @@ export interface UsageAttribution {
 
 /** Tokens of a single day (local YYYY-MM-DD key). */
 export interface DailyTokens {
-  date: string; // YYYY-MM-DD no fuso local
+  date: string; // YYYY-MM-DD, in the local time zone
   sent: number; // input + cache_read + cache_creation
   received: number; // output
 }
@@ -276,8 +276,8 @@ export interface UsageData {
   // Why the real source is unavailable (HTTP 401, timeout, …). Only set when `source` fell
   // back to 'estimate' — technical code, shown as a suffix of the estimate note.
   sourceError?: string;
-  trackingEnabled: boolean; // wrapper de statusline instalado (captura rate_limits real)
-  // Detalhamento local 7d (por modelo / origem) — estimativa, sempre presente.
+  trackingEnabled: boolean; // the statusline wrapper is installed, capturing the real rate_limits
+  // The local 7-day breakdown, by model and by source — an estimate, always present.
   breakdown?: UsageBreakdown;
   // Local 7d attribution: long context, subagents, cache hit rate, tools/MCP.
   attribution?: UsageAttribution;
@@ -320,13 +320,13 @@ export interface McpServerInfo {
   // 'pending' = `.mcp.json` not approved (the CLI won't even start the server — 2.1.196).
   status: 'connected' | 'failed' | 'pending' | 'unknown';
   connected: boolean;
-  target?: string; // comando (stdio) ou URL (http/sse), sem o sufixo `(HTTP)`/`(SSE)`
-  transport?: string; // 'HTTP' | 'SSE' — só p/ servidores remotos; ausente = stdio
-  notConfigured?: boolean; // remoto declarado sem URL (a CLI 2.1.208 mostra "not configured")
-  // Motivo pelo qual o CLI recusou o servidor na validação de config (init
-  // `mcp_server_errors`, 2.1.219). Presente = servidor pulado; implica status 'failed'.
+  target?: string; // the command (stdio) or URL (http/sse), without the `(HTTP)`/`(SSE)` suffix
+  transport?: string; // 'HTTP' | 'SSE' — remote servers only; absent means stdio
+  notConfigured?: boolean; // a remote declared with no URL (CLI 2.1.208 shows "not configured")
+  // Why the CLI refused the server while validating the config (init
+  // `mcp_server_errors`, 2.1.219). Present means the server was skipped, so status is 'failed'.
   error?: string;
-  tools: string[]; // nomes curtos, sem o prefixo `mcp__<server>__`
+  tools: string[]; // short names, without the `mcp__<server>__` prefix
 }
 
 export interface McpData {
@@ -337,7 +337,7 @@ export interface McpData {
 export interface SessionConfig {
   engine: string; // 'claude' | 'tootega' — which binary backs the session
   engines: string[];
-  model: string; // valor selecionado ('default' = padrão do CLI)
+  model: string; // the selected value ('default' means the CLI's own)
   effort: string; // 'default' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   models: string[]; // flat options (compat)
   modelGroups?: ModelGroup[]; // grouped options (aliases / versions / active)
@@ -352,7 +352,7 @@ export interface SessionConfig {
   spellCheck: boolean; // spell-check while typing (composer overlay)
   expandToolCards: boolean; // expand tool cards by default in the timeline
   pendingRestart: boolean; // model/effort/permission changed and restarts on the next send
-  userName: string; // nome do assinante para o rótulo "You" (vazio = usa o padrão)
+  userName: string; // the subscriber name for the "You" label; empty falls back to the default
   voiceCorrect: boolean; // correct the dictated text via Haiku when dictation stops
   verbosity: string; // verbose|necessary|dialogo|quiet — what to show in the timeline
 }
@@ -366,11 +366,11 @@ export interface ModelGroup {
 // The context comes REAL from the Models API (/v1/models: max_input_tokens); the price from the
 // pricing docs (there is no price endpoint). Absent fields = unknown.
 export interface ModelMeta {
-  label?: string; // display_name oficial ("Claude Opus 4.8"); ausente = derivar do id
+  label?: string; // the official display_name ("Claude Opus 4.8"); absent means derive it from the id
   contextTokens?: number; // janela de contexto (max_input_tokens)
   inMTok?: number; // input price in USD per 1M tokens
   outMTok?: number; // output price in USD per 1M tokens
-  priceMult?: number; // multiplicador de entrada normalizado (o mais caro da lista = 1x)
+  priceMult?: number; // a normalized input multiplier, where the list's most expensive is 1x
 }
 
 // Existing session/conversation ("context") to resume.
@@ -381,9 +381,9 @@ export interface SessionInfo {
   messageCount: number;
   // Extra statistics for the card's rich hint (all optional/tolerant).
   createdAt?: string; // ISO 8601 — transcript creation
-  sizeBytes?: number; // tamanho do .jsonl
+  sizeBytes?: number; // the .jsonl's size
   userCount?: number; // user messages
-  assistantCount?: number; // mensagens do assistente
+  assistantCount?: number; // the assistant's messages
   toolCount?: number; // chamadas de tool (tool_use)
   model?: string; // last observed model
 }
@@ -520,26 +520,26 @@ type HostMsg =
   | { kind: 'resolvedPath'; requestId: string; text: string }
   | { kind: 'openSessions' }
   | { kind: 'taskTimings'; timings: Record<string, number> } // averages per type, already in the current (model,effort) scope (gauge)
-  | { kind: 'usageData'; data: UsageData } // resposta ao botão "Usage"
+  | { kind: 'usageData'; data: UsageData } // the answer to the Usage button
   | { kind: 'effortGate'; selected: string; min: string } // effort < the folder CLAUDE.md minimum: confirm first
-  | { kind: 'voiceCorrected'; text: string } // ditado: texto corrigido (libera o input)
+  | { kind: 'voiceCorrected'; text: string } // dictation: the corrected text, which releases the input
   | { kind: 'voiceCorrectError' } // dictation: correction failed (keeps the original, unblocks)
   | { kind: 'draftRestore'; text: string } // restores the draft/dictation after a renderer reload/crash
   | { kind: 'voiceDict'; data: VoiceDictData } // the account's dictation dictionary (answer to the modal)
   | { kind: 'voiceReady' } // dictation: WS open + mic actually capturing (you may speak)
   | { kind: 'voiceTranscript'; text: string; isFinal: boolean } // dictation: partial/final transcription
-  | { kind: 'voiceError'; message: string } // dictation: failure (no token, ws, etc.)
+  | { kind: 'voiceError'; message: string } // dictation: a failure (no token, a socket error, and so on)
   | { kind: 'voiceClosed' } // dictation: session ended
   | { kind: 'auth'; loggedIn: boolean } // estado de login (mostra Sign in OU Sign out)
   | { kind: 'pluginsData'; data: PluginsData } // lista de plugins/marketplaces (modal)
   | { kind: 'pluginsBusy'; busy: boolean; label?: string } // operation in progress
   | { kind: 'pluginsError'; message: string } // a plugin action failed
-  | { kind: 'skillsBusy'; busy: boolean } // leitura do get_context_usage em curso
-  // Corpo de um SKILL.md entrou no contexto: marca isso no card do Skill no timeline.
-  // `tokens` é ESTIMATIVA (tamanho da mensagem injetada); ausente = engine não informou.
+  | { kind: 'skillsBusy'; busy: boolean } // a get_context_usage reading is in flight
+  // A SKILL.md body entered the context: it seals the Skill card in the timeline.
+  // `tokens` is an ESTIMATE of the injected message; absent means the engine said nothing.
   | { kind: 'skillLoaded'; toolUseId: string; name: string; tokens?: number }
-  // Um HOOK injetou texto no contexto (sem tool_use para selar): vira item próprio no
-  // timeline. `skill` sai quando o texto casa com o corpo de um SKILL.md em disco.
+  // A HOOK injected text into the context, with no tool_use to seal it, so it becomes an
+  // item of its own. `skill` appears when the text matches a SKILL.md body on disk.
   | { kind: 'hookInjected'; hook: string; event?: string; skill?: string; tokens?: number }
   // A warning the engine emitted mid-session as a `system` event: fast mode running out of
   // usage credits (CLI 2.1.221), a subagent whose model is restricted so the parent's model
@@ -571,16 +571,16 @@ type HostMsg =
       phase?: 'connecting' | 'active' | 'failed';
       detail?: string;
     }
-  | { kind: 'mcpData'; data: McpData } // servidores MCP + tools (modal)
-  | { kind: 'mcpBusy'; busy: boolean } // health-check do `claude mcp list` em curso
+  | { kind: 'mcpData'; data: McpData } // MCP servers and their tools, for the modal
+  | { kind: 'mcpBusy'; busy: boolean } // a `claude mcp list` health check is in flight
   // Spell-checker (host via hunspell-asm): result of a check (wrong words)
   // and of suggestions (per language).
   | { kind: 'spellResult'; bad: string[] }
   | { kind: 'spellSuggestResult'; requestId: string; word: string; pt: string[]; en: string[] }
   // --- Cofre de credenciais (TOTP 2FA) ---
-  | { kind: 'credsData'; enrolled: boolean; items: CredentialMeta[] } // estado do cofre
+  | { kind: 'credsData'; enrolled: boolean; items: CredentialMeta[] } // the vault's state
   | { kind: 'credsSetup'; qrSvg: string; secret: string; uri: string } // enrollment: QR + segredo
-  | { kind: 'credsValue'; id: string; name: string; value: string } // valor liberado p/ injetar no composer
+  | { kind: 'credsValue'; id: string; name: string; value: string } // the released value, to be injected into the composer
   | { kind: 'credsResult'; ok: boolean; action: string; message?: string } // result of an action
   | { kind: 'credsError'; message: string } // failure (storage unavailable, etc.)
   // Editor selection/active file to share as @file#a-b (composer toggle).
@@ -588,7 +588,7 @@ type HostMsg =
   // Autocomplete de @-mention: resultados de arquivos p/ a query digitada.
   | { kind: 'mentionResults'; requestId: string; items: string[] };
 
-// Metadados de um slash command pesquisados por IA (cache global ~/.claude).
+// A slash command's metadata, researched by AI (cached globally in ~/.claude).
 // `category` is an enum key (session|context|config|tools|account|info|plugin|other);
 // `hint`/`detail` already come in the Cockpit's language.
 export interface SlashCmdMeta {
@@ -630,7 +630,7 @@ export type WebviewToHost =
       kind: 'permissionDecision';
       requestId: string;
       decision: 'allow' | 'deny' | 'allow_always';
-      message?: string; // feedback (plan mode editável: notas ao "manter planejando")
+      message?: string; // feedback (in editable plan mode, the notes attached to "keep planning")
     }
   | { kind: 'askResponse'; requestId: string; answers: Record<string, string> }
   | { kind: 'setModel'; model: string }
@@ -644,7 +644,7 @@ export type WebviewToHost =
   | { kind: 'listSessions' }
   | { kind: 'resumeSession'; sessionId: string }
   | { kind: 'reloadSession'; sessionId: string }
-  | { kind: 'remoteControl'; sessionId: string } // publishes the session for remote control (phone)
+  | { kind: 'remoteControl'; sessionId: string } // publishes the session for remote control (from a phone)
   | { kind: 'deleteSession'; sessionId: string }
   | { kind: 'deleteAllSessions' }
   | { kind: 'newTab'; cwd?: string } // no folder = inherit the current tab's
@@ -661,26 +661,26 @@ export type WebviewToHost =
   | { kind: 'clearContext' }
   | { kind: 'compactContext' }
   | { kind: 'mentionSearch'; requestId: string; query: string } // @-mention: busca arquivos
-  | { kind: 'openDiff'; tool: string; input: unknown } // abre o diff proposto no editor nativo
-  | { kind: 'draftChanged'; text: string } // espelha o rascunho/ditado no host (anti-perda)
+  | { kind: 'openDiff'; tool: string; input: unknown } // opens the proposed diff in the editor's own comparison window
+  | { kind: 'draftChanged'; text: string } // mirrors the draft or dictation in the host, so a dead renderer loses nothing
   // Exports the conversation to a .md at the project root. mode 'direct' = mechanical (the
   // markdown is already built); 'ai' = rewritten via the CLI (same model/effort, spends tokens).
   | { kind: 'exportMd'; markdown: string; fileName?: string; mode: 'direct' | 'ai' }
   | { kind: 'voiceDictGet' } // modal: loads the account's dictation dictionary
   | { kind: 'voiceDictSave'; data: VoiceDictData } // modal: saves the dictation dictionary
-  | { kind: 'setKeepCacheAlive'; value: boolean } // liga/desliga o keep-alive do cache desta aba
+  | { kind: 'setKeepCacheAlive'; value: boolean } // turns this tab's cache keep-alive on and off
   | { kind: 'openEditor' }
   | { kind: 'openFolder'; path: string }
   | { kind: 'taskDuration'; type: string; ms: number } // task duration sample (gauge)
-  | { kind: 'rewind'; index: number } // rewinds the conversation to the (index)-th user prompt, removing it
-  | { kind: 'voiceStart'; language?: string } // ditado: host abre o WS + captura o mic (ffmpeg)
-  | { kind: 'voiceStop' } // ditado: finaliza a captura
-  | { kind: 'voiceCorrect'; text: string } // ditado: corrige o texto via Haiku (one-shot)
-  | { kind: 'pluginsRefresh'; force?: boolean } // modal Plugins: (re)carrega; force = re-valida URLs via Haiku
-  | { kind: 'mcpRefresh' } // modal MCP: (re)carrega init + `claude mcp list`
-  // Painel Skills: relê o get_context_usage (control_request, sem gastar turno).
+  | { kind: 'rewind'; index: number } // rewinds the conversation to the (index)-th user prompt, dropping it
+  | { kind: 'voiceStart'; language?: string } // dictation: the host opens the socket and captures the mic through ffmpeg
+  | { kind: 'voiceStop' } // dictation: ends the capture
+  | { kind: 'voiceCorrect'; text: string } // dictation: cleans the text up through a one-shot model call
+  | { kind: 'pluginsRefresh'; force?: boolean } // the Plugins modal: (re)loads; force re-validates the URLs through the model
+  | { kind: 'mcpRefresh' } // the MCP modal: (re)loads the init inventory plus `claude mcp list`
+  // The Skills panel: re-reads get_context_usage through a control request, spending no turn.
   | { kind: 'skillsRefresh' }
-  // Painel Skills: muda o override de UMA skill (aplica no próximo spawn do CLI).
+  // The Skills panel: changes ONE skill's override, applied on the CLI's next spawn.
   | { kind: 'skillOverrideSet'; name: string; value: SkillOverride }
   | {
       kind: 'pluginAction';
@@ -688,7 +688,7 @@ export type WebviewToHost =
       arg: string;
       scope?: string;
     }
-  | { kind: 'fetchUsage' } // botão "Usage": busca conta + limites + breakdown (dado quente)
+  | { kind: 'fetchUsage' } // the Usage button: fetches account, limits and breakdown — hot data
   | { kind: 'enableUsageTracking' } // instala o wrapper de statusline p/ capturar rate_limits real
   | { kind: 'saveImage'; mediaType: string; data: string }
   // Spell-checker: checks a batch of words; asks for suggestions for one; adds
@@ -697,11 +697,11 @@ export type WebviewToHost =
   | { kind: 'spellSuggest'; requestId: string; word: string }
   | { kind: 'spellAdd'; word: string }
   // --- Cofre de credenciais (TOTP 2FA) ---
-  | { kind: 'credsLoad' } // pede o estado do cofre (enrolado? lista)
-  | { kind: 'credsEnrollBegin' } // gera segredo TOTP novo (devolve QR)
+  | { kind: 'credsLoad' } // asks for the vault's state: enrolled, and the list
+  | { kind: 'credsEnrollBegin' } // generates a fresh TOTP secret and returns the QR
   | { kind: 'credsEnrollConfirm'; code: string } // confirms the enrollment with the first code
   | { kind: 'credsAdd'; code: string; name: string; username?: string; value: string; note?: string }
   // Edit: absent/undefined value = keeps the current value; present = replaces it.
   | { kind: 'credsEdit'; code: string; id: string; name: string; username?: string; value?: string; note?: string }
-  | { kind: 'credsUse'; code: string; id: string } // usa: valida TOTP e devolve o valor
+  | { kind: 'credsUse'; code: string; id: string } // use: validates the TOTP and returns the value
   | { kind: 'credsDelete'; code: string; id: string };

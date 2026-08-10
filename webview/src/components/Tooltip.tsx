@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
-const SHOW_DELAY_MS = 500; // ~ delay do tooltip nativo (atributo title)
+const SHOW_DELAY_MS = 500; // ~ the native tooltip's delay (the title attribute)
 
 export interface TooltipRow {
   label: string;
@@ -11,17 +11,17 @@ export interface TooltipRow {
 
 // Provenance footer: source of the data + confidence level (color per level).
 export interface TooltipMeta {
-  originLabel: string; // ex.: "Origem"
-  origin: string; // ex.: "Servidor (via CLI)"
-  confidenceLabel: string; // ex.: "Confiança"
-  confidence: 'high' | 'medium' | 'low'; // cor do chip
-  confidenceText: string; // ex.: "Alta"
+  originLabel: string; // e.g. "Origin"
+  origin: string; // e.g. "Server (through the CLI)"
+  confidenceLabel: string; // e.g. "Confidence"
+  confidence: 'high' | 'medium' | 'low'; // the chip's colour
+  confidenceText: string; // e.g. "High"
 }
 
 interface Props {
   title?: string; // colored header
-  text?: string; // corpo simples (variante "simple")
-  rows?: TooltipRow[]; // grade chave/valor (variante "rich")
+  text?: string; // a plain body (the "simple" variant)
+  rows?: TooltipRow[]; // a key/value grid (the "rich" variant)
   meta?: TooltipMeta; // source/confidence footer (colored chips)
   children: ReactNode;
   className?: string;
@@ -31,7 +31,7 @@ interface Props {
 interface Anchor {
   top: number;
   bottom: number;
-  cx: number; // horizontal center of the anchor element
+  cx: number; // horizontal centre of the anchor element
 }
 interface Coord {
   left: number;
@@ -65,7 +65,7 @@ export function Tooltip({ title, text, rows, meta, children, className, focusabl
     setCoord(null);
   };
 
-  // Limpa o timer pendente se desmontar (ex.: item da timeline removido).
+  // Clears a pending timer on unmount, say when a timeline item is removed.
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   // Phase 2: with the popover mounted (hidden), it measures and clamps within the viewport.

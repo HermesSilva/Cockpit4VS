@@ -1,4 +1,4 @@
-/* Tema sincronizado com o VS Code via var(--vscode-*). Nenhuma cor hardcoded. */
+/* Theme synced with VS Code through var(--vscode-*). No hardcoded colour. */
 * {
   box-sizing: border-box;
 }
@@ -19,7 +19,7 @@ body {
   background: var(--vscode-sideBar-background, var(--vscode-editor-background));
 }
 
-/* Accent laranja do Tootega: único ponto de cor fixa (destaque de modais e hints). */
+/* The Tootega orange: the one fixed colour (modal and hint accents). */
 :root {
   --tt-accent: #ff8c42;
   --tt-accent-strong: #ff7a1a;
@@ -31,10 +31,10 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  position: relative; /* âncora da barra de busca flutuante (Ctrl+F) */
+  position: relative; /* anchor for the floating search bar (Ctrl+F) */
 }
 
-/* ---------- Tab bar (sessões paralelas) ---------- */
+/* ---------- Tab bar (parallel sessions) ---------- */
 .tabbar {
   display: flex;
   align-items: stretch;
@@ -187,7 +187,7 @@ body {
   flex: 0 0 auto;
 }
 
-/* Prompt em execução, fixo ao lado do modelo */
+/* The running prompt, pinned beside the model */
 .status-prompt {
   display: flex;
   align-items: center;
@@ -214,7 +214,7 @@ body {
   opacity: 0.75;
 }
 
-/* Toolbar de botões */
+/* The button toolbar */
 .toolbar {
   display: flex;
   align-items: center;
@@ -270,7 +270,7 @@ body {
   border-color: color-mix(in srgb, var(--vscode-focusBorder, #3794ff) 50%, transparent);
   color: var(--vscode-focusBorder, #3794ff);
 }
-/* Badge numérico (ex.: progresso de tarefas) — alarga o botão */
+/* A numeric badge (task progress, say) — it widens the button */
 .iconbtn:has(.iconbtn-badge) {
   width: auto;
   padding: 0 6px;
@@ -352,7 +352,7 @@ body {
 
 /* ---------- Sessions drawer ---------- */
 .sessions-drawer {
-  flex: 0 0 auto; /* não deixa o flex espremer a drawer quando há sessão aberta */
+  flex: 0 0 auto; /* keeps flex from squeezing the drawer while a session is open */
   border-bottom: 1px solid var(--vscode-panel-border, transparent);
   max-height: 55%;
   overflow-y: auto;
@@ -405,7 +405,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  direction: rtl; /* mantém o fim do caminho visível ao truncar */
+  direction: rtl; /* keeps the end of the path visible when it truncates */
   text-align: left;
 }
 .sessions-empty {
@@ -524,7 +524,7 @@ body {
   max-width: 160px;
 }
 
-/* Seletor de modelo com 3 colunas (dropdown próprio) */
+/* The model picker, three columns in a dropdown of its own */
 .ctrl-modelsel {
   position: relative;
 }
@@ -558,8 +558,8 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   padding: 2px;
 }
-/* Larguras fixas nas colunas numéricas: cada linha é um grid próprio, então só
-   colunas de largura fixa alinham verticalmente entre as linhas. */
+/* Fixed widths on the numeric columns: each row is its own grid, so only
+   fixed-width columns line up vertically across rows. */
 .ctrl-modelsel-head,
 .ctrl-modelsel-row {
   display: grid;
@@ -648,7 +648,7 @@ body {
 .ctrl-modelsel-row-wrap.sel .ctrl-modelsel-remove {
   opacity: 0.6;
 }
-/* Seletor de effort: 2 colunas (nível · consumo estimado) */
+/* The effort picker: two columns, level and estimated consumption */
 .ctrl-effortsel .ctrl-modelsel-pop {
   min-width: 180px;
 }
@@ -738,7 +738,7 @@ body {
   padding: 10px 16px 10px 10px;
 }
 
-/* Marcadores de prompt (overview ruler) ao lado da scrollbar */
+/* Prompt markers (overview ruler) beside the scrollbar */
 .markers {
   position: absolute;
   top: 0;
@@ -839,7 +839,7 @@ body {
   margin-bottom: 4px;
   letter-spacing: 0.01em;
 }
-/* Autor por cor: You = azul, Claude = coral da marca. */
+/* Author by colour: You = blue, Claude = the brand coral. */
 .bubble .role.role-user {
   color: var(--vscode-charts-blue, #3b82f6);
   opacity: 1;
@@ -847,7 +847,7 @@ body {
   align-items: center;
   justify-content: space-between;
 }
-/* Carimbo de data/hora completo (à direita, na linha do nome). */
+/* The full timestamp (right, on the name's line). */
 .bubble-time {
   margin-left: auto;
   margin-right: 6px;
@@ -855,7 +855,7 @@ body {
   font-weight: 400;
   color: var(--vscode-descriptionForeground, #8a8a8a);
 }
-/* Fim da interação com o CLI: última linha do turno, à esquerda. */
+/* End of the exchange with the CLI: the turn's last line, on the left. */
 .turn-end {
   font-size: 10px;
   font-weight: 400;
@@ -864,7 +864,7 @@ body {
   margin-top: 4px;
   opacity: 0.85;
 }
-/* Tempo decorrido (min:seg) ao lado da data/hora de término do turno. */
+/* Elapsed time (min:sec) beside the turn's end timestamp. */
 .turn-elapsed {
   margin-left: 8px;
   font-variant-numeric: tabular-nums;
@@ -876,8 +876,8 @@ body {
   color: #d97757;
   opacity: 1;
 }
-/* Indicador de atividade: última linha do timeline enquanto o turno corre.
-   Ícone da extensão + spinner + contador de tokens enviados/recebidos. */
+/* Activity indicator: the timeline's last line while the turn runs.
+   The extension icon, a spinner and a count of tokens sent and received. */
 .activity {
   display: flex;
   align-items: center;
@@ -924,9 +924,9 @@ body {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-/* Gauge de progresso restante (assintótico): à direita do "Working". A largura
-   do fill é dirigida por JS (decaimento exponencial); a transition só suaviza
-   entre os ticks de 100ms. */
+/* Remaining-progress gauge (asymptotic): right of "Working". The fill's width
+   is driven by JS (exponential decay); the transition only smooths between
+   the 100ms ticks. */
 .activity-gauge {
   position: relative;
   flex: 1 1 auto;
@@ -943,8 +943,8 @@ body {
   background: var(--vscode-focusBorder, #3794ff);
   transition: width 0.12s linear;
 }
-/* Rótulo do percentual já percorrido, centrado sobre a barra. Sombra p/ legibilidade
-   tanto sobre o trecho preenchido (azul) quanto sobre o trilho. */
+/* The percentage covered so far, centred over the bar. A shadow for legibility
+   over both the filled stretch (blue) and the track. */
 .activity-gauge-pct {
   position: absolute;
   inset: 0;
@@ -959,8 +959,8 @@ body {
     0 0 2px var(--vscode-editor-background, #1e1e1e);
   pointer-events: none;
 }
-/* Tempo decorrido do turno (min:seg), encostado à direita da barra, logo após o
-   percentual centrado. Mesma sombra p/ legibilidade sobre fill/trilho. */
+/* The turn's elapsed time (min:sec), against the right of the bar, just after the
+   centred percentage. The same shadow for legibility over fill and track. */
 .activity-gauge-time {
   position: absolute;
   top: 0;
@@ -984,14 +984,14 @@ body {
     transition: none;
   }
 }
-/* Elementos vindos do Claude (texto + tools): 90% da largura da webview,
-   alinhados à esquerda. Prompts do usuário ficam de fora (regra .bubble.user). */
+/* Everything from Claude (text and tools): 90% of the webview's width, left
+   aligned. The user's prompts are excluded (the .bubble.user rule). */
 .bubble.assistant {
   width: 90%;
   margin-right: auto;
 }
-/* Todo prompt do usuário: card inteiro (role + texto) com borda accent + glow,
-   metade da largura da webview, alinhado à direita. */
+/* Every user prompt: the whole card (role and text) with an accent border and
+   glow, half the webview's width, right aligned. */
 .bubble.user {
   width: 50%;
   margin-left: auto;
@@ -1003,26 +1003,26 @@ body {
     0 0 0 1px color-mix(in srgb, var(--vscode-focusBorder, #3794ff) 30%, transparent),
     0 6px 22px color-mix(in srgb, var(--vscode-focusBorder, #3794ff) 22%, transparent);
 }
-/* Só o ÚLTIMO prompt fica "parado" no topo do timeline ao rolar. O sticky vai no
-   wrapper (.tt-wrap) porque ele é o filho direto da timeline; a bolha sozinha,
-   dentro do wrapper, não teria range de sticky. */
+/* Only the LAST prompt stays "parked" at the top of the timeline while scrolling. The
+   sticky goes on the wrapper (.tt-wrap) because that is the timeline's direct child;
+   the bubble alone, inside the wrapper, would have no sticky range. */
 .tt-wrap.pinned-wrap {
   position: sticky;
   top: 0;
   z-index: 5;
 }
-/* Dentro do card o conteúdo fica sem caixa própria. */
+/* Inside the card the content has no box of its own. */
 .bubble.user .content {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
   padding: 2px 0 0;
   white-space: pre-wrap;
-  /* No máx. 20% da altura da webview (caixa rolável p/ prompt longo). */
+  /* At most 20% of the webview's height (a scrollable box for a long prompt). */
   max-height: 20vh;
   overflow: auto;
 }
-/* Mensagem do usuário com highlight: <pre> mas com a fonte do corpo (não mono). */
+/* A highlighted user message: a <pre>, but in the body font, not mono. */
 .user-hl {
   margin: 0;
   font-family: inherit;
@@ -1033,7 +1033,7 @@ body {
   word-break: break-word;
 }
 
-/* Prompt encolhido: mostra só a primeira linha. */
+/* A collapsed prompt: only the first line. */
 .user-hl--clamp {
   display: -webkit-box;
   -webkit-line-clamp: 1;
@@ -1055,7 +1055,7 @@ body {
   text-decoration: underline;
 }
 
-/* Highlight markdown-aware (input + mensagem do usuário) */
+/* Markdown-aware highlight (the input and the user's message) */
 .rt-fence {
   opacity: 0.5;
 }
@@ -1159,8 +1159,8 @@ body {
 .md-list li {
   margin: 2px 0;
 }
-/* Tabela GFM: alinhada, com bordas e cabeçalho destacado (resolve os pipes
-   crus desalinhados que o texto monoespaçado nunca alinhava). */
+/* GFM table: aligned, with borders and a distinct header — it fixes the raw
+   misaligned pipes that monospaced text never lined up. */
 .md-table {
   border-collapse: collapse;
   margin: 6px 0 10px;
@@ -1168,7 +1168,7 @@ body {
   width: auto;
   max-width: 100%;
   display: block;
-  overflow-x: auto; /* tabela larga rola em vez de estourar o balão */
+  overflow-x: auto; /* a wide table scrolls instead of bursting the bubble */
 }
 .md-table th,
 .md-table td {
@@ -1182,7 +1182,7 @@ body {
   font-weight: 600;
 }
 .md-table tbody tr:nth-child(even) td {
-  background: rgba(127, 127, 127, 0.06); /* zebra sutil p/ leitura por linha */
+  background: rgba(127, 127, 127, 0.06); /* a subtle zebra, for reading row by row */
 }
 .md-code {
   position: relative;
@@ -1243,7 +1243,7 @@ body {
   font-size: 0.92em;
 }
 
-/* highlight.js — tema discreto via cores de chart do VSCode (adapta ao tema) */
+/* highlight.js — a quiet theme from VS Code's chart colours (follows the theme) */
 .hljs {
   color: var(--vscode-editor-foreground, var(--vscode-foreground));
 }
@@ -1299,7 +1299,7 @@ body {
 }
 
 /* Tool cards */
-/* Cards de tool: clean, sem bordas. Estado (busy/err) = barra accent fina à esquerda. */
+/* Tool cards: clean, no borders. State (busy/error) is a thin accent bar on the left. */
 .tool-card {
   border: none;
   border-radius: 6px;
@@ -1390,17 +1390,17 @@ body {
 }
 .tool-body {
   padding: 6px 8px;
-  /* Item expandido: no máximo metade da altura da webview, com rolagem própria. */
+  /* An expanded item: at most half the webview's height, scrolling on its own. */
   max-height: 50vh;
   overflow: auto;
 }
-/* Edições mescladas (mesmo arquivo, seguidas): separador entre cada diff. */
+/* Merged edits (same file, one after another): a separator between each diff. */
 .tool-merge-part {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed color-mix(in srgb, var(--vscode-foreground) 18%, transparent);
 }
-/* Contador "×N" no nome quando há edições mescladas. */
+/* The "×N" count on the name when edits were merged. */
 .tool-count {
   margin-left: 4px;
   font-size: 10px;
@@ -1434,7 +1434,7 @@ body {
   border-top: 1px solid var(--vscode-panel-border, transparent);
   padding: 8px;
 }
-/* Linha do input + painel lateral (expandir/contrair tudo) */
+/* The input row and the side panel (expand/collapse all) */
 .composer-row {
   display: flex;
   align-items: stretch;
@@ -1450,7 +1450,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  align-content: start; /* botões com altura fixa; não esticam p/ preencher a coluna */
+  align-content: start; /* fixed-height buttons; they must not stretch to fill the column */
 }
 .composer-side-btn {
   display: inline-flex;
@@ -1478,7 +1478,7 @@ body {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--vscode-charts-red, #f85149) 60%, transparent); }
   50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--vscode-charts-red, #f85149) 0%, transparent); }
 }
-/* Combobox de slash commands (botão "/" + dropdown agrupado, abre p/ cima). */
+/* The slash-command combobox: a "/" button and a grouped dropdown that opens upwards. */
 .slash-cmd-wrap {
   position: relative;
   display: block;
@@ -1515,7 +1515,7 @@ body {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 4px 8px 4px 18px; /* recuo à direita em relação ao cabeçalho do grupo */
+  padding: 4px 8px 4px 18px; /* indented from the group's header */
   border: none;
   background: none;
   color: var(--vscode-foreground);
@@ -1532,7 +1532,7 @@ body {
   font-size: 11px;
   opacity: 0.7;
 }
-/* Spinner suave do ícone Cockpit durante a pesquisa IA. */
+/* A gentle spin of the Cockpit icon while the AI research runs. */
 .slash-spin {
   transform-origin: center;
   animation: slash-rot 1.6s linear infinite;
@@ -1547,10 +1547,10 @@ body {
     animation-duration: 3.2s;
   }
 }
-/* Send/Stop preenche o resto da coluna lateral, alinhado à altura do input. */
+/* Send/Stop fills the rest of the side column, aligned with the input's height. */
 .composer-side .btn {
   width: 100%;
-  grid-column: 1 / -1; /* Send/Stop ocupa a linha inteira (2 colunas) */
+  grid-column: 1 / -1; /* Send/Stop takes the whole row, both columns */
   flex: 0 0 auto;
   min-height: 22px;
   display: inline-flex;
@@ -1624,7 +1624,7 @@ body {
   border-radius: 6px;
   border: 1px solid var(--vscode-panel-border, transparent);
 }
-/* Input com syntax highlight: textarea transparente sobre um <pre> espelho. */
+/* Input with syntax highlight: a transparent textarea over a mirrored <pre>. */
 .composer-input-wrap {
   position: relative;
   background: var(--vscode-input-background);
@@ -1634,11 +1634,11 @@ body {
 .composer-input-wrap:focus-within {
   outline: 1px solid var(--vscode-focusBorder);
 }
-/* Botão de mic na coluna lateral (junto de send/stop). Azul; vermelho gravando. */
+/* The mic button in the side column, beside send/stop. Blue; red while recording. */
 .composer-side-btn.voice {
   color: var(--vscode-charts-blue, #3794ff);
 }
-/* Corrigindo: spinner no lugar do ícone. */
+/* Correcting: a spinner in place of the icon. */
 .voice-spinner {
   width: 13px;
   height: 13px;
@@ -1650,8 +1650,8 @@ body {
 @keyframes voice-spin {
   to { transform: rotate(360deg); }
 }
-/* Spinner no card de contexto (hub): contexto ativo processando um turno.
-   Laranja (sobrescreve o azul padrão do .voice-spinner). */
+/* Spinner on a context card (hub): an open context working through a turn.
+   Orange, overriding .voice-spinner's default blue. */
 .ctx-info-spinner {
   display: inline-block;
   width: 10px;
@@ -1662,12 +1662,12 @@ body {
   border-color: color-mix(in srgb, #ff7a18 35%, transparent);
   border-top-color: #ff7a18;
 }
-/* Input travado durante a correção: leve dimming. */
+/* The input while a correction runs: dimmed a little. */
 .composer-input[readonly] {
   opacity: 0.7;
 }
-/* Overlay "conectando ditado": spinner + aviso sobre o input, até o mic ficar
-   realmente vivo (voiceReady). Sinaliza p/ o usuário NÃO falar ainda. */
+/* The "connecting dictation" overlay: a spinner and a notice over the input, until
+   the mic is really live (voiceReady). It tells the user NOT to speak yet. */
 .voice-connecting {
   position: absolute;
   inset: 0;
@@ -1680,7 +1680,7 @@ body {
   background: color-mix(in srgb, var(--vscode-input-background) 86%, transparent);
   color: var(--vscode-charts-blue, #3794ff);
   font-size: 12px;
-  pointer-events: none; /* não bloqueia foco/clique do textarea */
+  pointer-events: none; /* must not block focus or clicks on the textarea */
 }
 @media (prefers-reduced-motion: reduce) {
   .voice-spinner { animation: none; }
@@ -1694,7 +1694,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .composer-side-btn.voice.recording { animation: none; }
 }
-/* Tipografia/box IDÊNTICOS nos dois p/ o texto alinhar com o highlight. */
+/* Typography and box IDENTICAL in both, so the text lines up with the highlight. */
 .composer-highlight,
 .composer-input {
   margin: 0;
@@ -1728,14 +1728,14 @@ body {
   color: transparent;
   caret-color: var(--vscode-input-foreground);
   outline: none;
-  scrollbar-width: thin; /* menos diferença de largura vs espelho ao rolar */
+  scrollbar-width: thin; /* less width difference against the mirror while scrolling */
 }
-/* Menu de @-mention (reusa o visual do slash-menu). */
+/* The @-mention menu (reuses the slash menu's look). */
 .mention-menu .slash-item {
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 11px;
 }
-/* Checklist de onboarding no hub. */
+/* The onboarding checklist in the hub. */
 .onboarding {
   margin: 4px 0 8px;
   padding: 8px 10px;
@@ -1784,7 +1784,7 @@ body {
   color: var(--tt-accent-strong, #ff7a18);
   width: 12px;
 }
-/* Chip da seleção ativa do editor (compartilhar com o Claude). */
+/* The editor's active selection as a chip, shared with Claude. */
 .composer-selchip {
   display: inline-flex;
   align-items: center;
@@ -1810,17 +1810,17 @@ body {
 .composer-selchip-eye {
   color: var(--tt-accent-strong, #ff7a18);
 }
-/* Palavra com erro ortográfico no overlay: underline ondulado + cor de erro. */
+/* A misspelled word in the overlay: a wavy underline in the error colour. */
 .spell-error {
   text-decoration: underline wavy var(--vscode-editorError-foreground, #f14c4c);
   text-decoration-skip-ink: none;
   text-underline-offset: 2px;
   color: var(--vscode-editorError-foreground, #f14c4c);
-  /* Recebe o clique através do textarea transparente acima (pointer-events do
-     overlay é none): o handler usa selectionStart do textarea, não o span. */
+  /* Takes the click through the transparent textarea above (the overlay's
+     pointer-events is none): the handler uses the textarea's selectionStart. */
   cursor: pointer;
 }
-/* Dropdown de correção (posição fixa, ancorado na palavra). */
+/* The correction dropdown: fixed position, anchored to the word. */
 .spell-menu {
   position: fixed;
   z-index: 50;
@@ -1878,8 +1878,8 @@ body {
   padding: 4px 8px;
   opacity: 0.6;
 }
-/* Loader do timeline: enquanto o host não reportou o status do CLI. Anel grande
-   laranja girando com o nome "Cockpit" no centro. */
+/* The timeline's loader, while the host has not reported the CLI status. A large
+   orange ring spinning around the name "Cockpit". */
 .cockpit-loader {
   display: flex;
   align-items: center;
@@ -1919,7 +1919,7 @@ body {
     animation: none;
   }
 }
-/* Barra de busca (Ctrl+F): flutua no topo-direito da área do chat. */
+/* The search bar (Ctrl+F): floats at the top right of the chat area. */
 .search-bar {
   position: absolute;
   top: 6px;
@@ -2046,7 +2046,7 @@ body {
   font-size: 12px;
 }
 
-/* ---------- CLI ausente (instalação guiada) ---------- */
+/* ---------- CLI missing (guided install) ---------- */
 .cli-missing {
   margin: 8px 10px;
   padding: 10px 12px;
@@ -2135,8 +2135,8 @@ body {
   cursor: pointer;
   font-size: 12px;
   padding: 0 4px;
-  /* Acima do tooltip portalado (.tt-pop z-index:1200): a caixa do título do
-     tooltip não pode cobrir nem bloquear o botão de copiar do bloco de código. */
+  /* Above the portalled tooltip (.tt-pop z-index:1200): the tooltip's title box
+     must neither cover nor block the code block's copy button. */
   z-index: 1201;
 }
 .code-copy:hover {
@@ -2152,8 +2152,8 @@ body {
   margin-left: 6px;
   padding: 0 3px;
   transition: opacity 0.12s;
-  /* Acima do tooltip portalado (.tt-pop z-index:1200): a caixa do título não
-     pode cobrir/bloquear o botão de copiar no cabeçalho. */
+  /* Above the portalled tooltip (.tt-pop z-index:1200): the title box must not
+     cover or block the copy button in the header. */
   position: relative;
   z-index: 1201;
 }
@@ -2163,7 +2163,7 @@ body {
 .msg-copy:hover {
   opacity: 1 !important;
 }
-/* Botão rebobinar no cabeçalho do prompt (oculto até hover da bolha). */
+/* The rewind button in the prompt's header, hidden until the bubble is hovered. */
 .msg-rewind {
   background: transparent;
   border: none;
@@ -2186,7 +2186,7 @@ body {
   color: var(--vscode-charts-red, #f85149);
 }
 
-/* ---------- Todos / Tasks (checklist inline no corpo) ---------- */
+/* ---------- Todos / Tasks (the inline checklist in the body) ---------- */
 .todo-inline {
   --todo-green: var(--vscode-charts-green, #3fb950);
   --todo-amber: var(--vscode-charts-yellow, #d29922);
@@ -2385,7 +2385,7 @@ body {
   opacity: 1;
 }
 
-/* Sessões como modal centralizado */
+/* Sessions as a centred modal */
 .modal.sessions {
   width: 480px;
   max-width: 100%;
@@ -2443,7 +2443,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000; /* acima de tudo (texto do chat, cards, scroll-bottom) */
+  z-index: 1000; /* above everything: chat text, cards, scroll-to-bottom */
   background: rgba(0, 0, 0, 0.58);
   display: flex;
   align-items: center;
@@ -2799,7 +2799,7 @@ body {
   white-space: nowrap;
 }
 
-/* Visualizador de imagem (clique no anexo colado) */
+/* The image viewer, on clicking a pasted attachment */
 .modal.img-viewer {
   position: relative;
   width: auto;
@@ -2889,7 +2889,7 @@ body {
   padding: 7px 9px;
 }
 .tt-row {
-  display: contents; /* k e v viram colunas diretas do grid (label | valor) */
+  display: contents; /* k and v become direct grid columns (label | value) */
 }
 .tt-k {
   opacity: 0.7;
@@ -2904,11 +2904,11 @@ body {
   color: var(--tt-accent);
 }
 
-/* Rodapé de procedência do hint: chips de Origem + Confiança, separados por
-   uma divisória e com fundo levemente destacado p/ "viver" à parte do texto. */
-/* Procedência: NÃO é botão — é texto refinado. Rótulo discreto em versalete +
-   valor colorido precedido de uma marca (pontinho na cor). Divisória fina
-   separando origem de confiança. Leve, elegante, sem caixa/preenchimento. */
+/* The hint's provenance footer: Origin and Confidence chips, split by a divider
+   and on a slightly raised background so they "live" apart from the text. */
+/* Provenance: NOT a button — refined text. A quiet label in small caps and a
+   coloured value preceded by a mark (a dot in the colour). A thin divider
+   separates origin from confidence. Light, elegant, with no box and no fill. */
 .tt-meta {
   display: flex;
   flex-wrap: wrap;
@@ -2934,7 +2934,7 @@ body {
   position: relative;
   font-size: 11px;
   font-weight: 600;
-  padding-left: 11px; /* espaço p/ a marca (pontinho) */
+  padding-left: 11px; /* room for the mark (the dot) */
 }
 .tt-fact-v::before {
   content: '';
@@ -2946,9 +2946,9 @@ body {
   margin-top: -3px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 6px currentColor; /* leve brilho na cor do valor */
+  box-shadow: 0 0 6px currentColor; /* a faint glow in the value's colour */
 }
-/* Divisória fina entre os dois fatos. */
+/* A thin divider between the two facts. */
 .tt-fact-sep {
   width: 1px;
   align-self: stretch;
@@ -2968,7 +2968,7 @@ body {
   color: var(--vscode-charts-red, #f85149);
 }
 
-/* Link de exportação da conversa (fim da timeline, só quando ocioso) */
+/* The conversation's export link: end of the timeline, only while idle */
 .timeline-export {
   display: flex;
   justify-content: center;
@@ -3018,7 +3018,7 @@ body {
   opacity: 1;
 }
 
-/* Dicionário de ditado */
+/* The dictation dictionary */
 .voicedict-modal {
   width: 460px;
   max-width: 92vw;
@@ -3057,7 +3057,7 @@ body {
   max-height: 52vh;
   overflow-y: auto;
 }
-/* Abas (um dicionário por aba). */
+/* Tabs (one dictionary per tab). */
 .voicedict-tabs {
   display: flex;
   gap: 2px;
@@ -3091,7 +3091,7 @@ body {
   padding: 0 6px;
   font-variant-numeric: tabular-nums;
 }
-/* Lista editável (linhas com input + remover). */
+/* An editable list: rows with an input and a remove button. */
 .voicedict-list {
   display: flex;
   flex-direction: column;
@@ -3201,7 +3201,7 @@ body {
   font-weight: 600;
   flex: 1;
 }
-/* Texto do chip clicável p/ editar (corretor): herda o visual do chip. */
+/* The clickable chip's text for editing (the corrector): inherits the chip's look. */
 .voicedict-chip-edit {
   background: none;
   border: none;
@@ -3384,7 +3384,7 @@ body {
   color: var(--vscode-textLink-foreground, #4daafc);
 }
 
-/* Arquivo (Write/Edit) */
+/* File (Write/Edit) */
 .perm-file {
   display: flex;
   align-items: center;
@@ -3520,27 +3520,27 @@ body {
   border: 1px solid var(--vscode-panel-border, #444);
   background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.08));
 }
-/* Botão "Abrir diff no editor" no modal de permissão. */
+/* The "Open diff in the editor" button in the permission modal. */
 .perm-opendiff {
   margin-top: 8px;
   font-size: 11px;
   padding: 3px 10px;
   opacity: 0.9;
 }
-/* Botão Editar/Visualizar no cabeçalho do plano. */
+/* The Edit/View button in the plan's header. */
 .perm-plan-edit {
   margin-left: auto;
   font-size: 11px;
   padding: 2px 10px;
 }
-/* Botão de Controle remoto ligado: a conversa está sendo conduzida pelo terminal. */
+/* Remote control on: the conversation is being driven from the console. */
 .composer-side-btn.remote-btn.on {
   color: var(--vscode-charts-green, #89d185);
   border-color: color-mix(in srgb, var(--vscode-charts-green, #89d185) 60%, transparent);
   background: color-mix(in srgb, var(--vscode-charts-green, #89d185) 14%, transparent);
 }
 
-/* Fronteira de compactação: medida, não aviso — azul, não âmbar. */
+/* The compaction boundary: a measurement, not a warning — blue, not amber. */
 .notice-banner.compact-banner {
   border-color: color-mix(in srgb, var(--vscode-charts-blue, #3794ff) 45%, transparent);
   background: color-mix(in srgb, var(--vscode-charts-blue, #3794ff) 10%, transparent);
@@ -3550,7 +3550,7 @@ body {
   color: var(--vscode-charts-blue, #3794ff);
 }
 
-/* Acessos que o sandbox recusou, destacados acima da saída: é a CAUSA da falha do comando. */
+/* Accesses the sandbox refused, shown above the output: they are the CAUSE of the failure. */
 .tool-sandbox {
   margin: 6px 0;
   padding: 6px 8px;
@@ -3571,7 +3571,7 @@ body {
   word-break: break-all;
 }
 
-/* Conectando: verde ainda não — a sessão remota não se registrou. Pulsa enquanto espera. */
+/* Connecting: not green yet — the remote session has not registered. Pulses while waiting. */
 .composer-side-btn.remote-btn.connecting {
   color: var(--vscode-charts-yellow, #cca700);
   border-color: color-mix(in srgb, var(--vscode-charts-yellow, #cca700) 60%, transparent);
@@ -3579,7 +3579,7 @@ body {
   animation: remote-pulse 1.4s ease-in-out infinite;
 }
 
-/* Falha: indicador PERMANENTE (não um toast que some) — o clique reconecta. */
+/* Failure: a PERMANENT indicator, not a toast that vanishes — clicking reconnects. */
 .composer-side-btn.remote-btn.failed {
   color: var(--vscode-charts-red, #f14c4c);
   border-color: color-mix(in srgb, var(--vscode-charts-red, #f14c4c) 60%, transparent);
@@ -3596,7 +3596,7 @@ body {
   }
 }
 
-/* Aviso de caractere invisível no comando a aprovar + a marca de cada ocorrência. */
+/* The invisible-character warning on the command being approved, and each occurrence's mark. */
 .perm-warn {
   margin: 6px 0 2px;
   padding: 6px 8px;
@@ -3617,13 +3617,13 @@ body {
   cursor: help;
 }
 
-/* Alterna maximizar/restaurar: só o glifo, ao lado de "Editar". */
+/* Toggles maximize/restore: the glyph alone, beside "Edit". */
 .perm-plan-max {
   font-size: 12px;
   line-height: 1;
   padding: 3px 8px;
 }
-/* Textarea de edição do plano (modo editar). */
+/* The plan's editing textarea, in edit mode. */
 .perm-plan-textarea {
   width: 100%;
   min-height: 38vh;
@@ -3808,7 +3808,7 @@ body {
 .ask-other-input:focus {
   outline: 1px solid var(--vscode-focusBorder);
 }
-/* Editor de texto por pergunta: acrescenta às escolhas da aba corrente. */
+/* The per-question text editor: appends to the current tab's choices. */
 .ask-notes {
   display: block;
   margin-top: 10px;
@@ -3845,7 +3845,7 @@ body {
   margin-top: 14px;
 }
 
-/* ---------- Ask: card inline (resposta registrada na timeline) ---------- */
+/* ---------- Ask: the inline card, the answer recorded in the timeline ---------- */
 .ask-card {
   border: 1px solid var(--vscode-panel-border, rgba(127, 127, 127, 0.3));
   border-left: 3px solid var(--vscode-focusBorder, #3794ff);
@@ -3895,7 +3895,7 @@ body {
   overflow: visible;
   margin-top: 6px;
 }
-/* Texto acrescentado à escolha, registrado no card da timeline. */
+/* Text appended to the choice, recorded on the timeline's card. */
 .ask-card-note {
   display: flex;
   gap: 6px;
@@ -3927,7 +3927,7 @@ body {
   background: color-mix(in srgb, var(--vscode-focusBorder, #3794ff) 14%, transparent);
 }
 
-/* ---------- Painel de Contexto (drawer da direita) ---------- */
+/* ---------- Context panel (the right-hand drawer) ---------- */
 .ctx-panel-overlay {
   position: fixed;
   inset: 0;
@@ -3989,7 +3989,7 @@ body {
   background: var(--vscode-panel-border, rgba(127, 127, 127, 0.3));
   margin: 0 3px;
 }
-/* Settings empurrado p/ a extrema direita da barra. */
+/* Settings pushed to the far right of the bar. */
 .hub-settings-wrap {
   margin-left: auto;
 }
@@ -4000,7 +4000,7 @@ body {
 .ctx-panel-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden; /* só a grade de contextos rola; o resto fica fixo */
+  overflow: hidden; /* only the context grid scrolls; the rest stays put */
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -4032,7 +4032,7 @@ body {
 .ctx-info-pct.crit {
   color: var(--vscode-charts-red, #f85149);
 }
-/* Vida do cache: cor do tempo restante + checkbox de keep-alive */
+/* Cache life: the remaining time's colour and the keep-alive checkbox */
 .stat-v.ok {
   color: var(--vscode-charts-green, #3fb950);
 }
@@ -4081,7 +4081,7 @@ body {
   max-width: none;
 }
 
-/* Cabeçalho da grade + grade de contextos (sessões) */
+/* The grid's header and the grid of contexts (sessions) */
 .ctx-panel-grid-wrap {
   display: flex;
   flex-direction: column;
@@ -4099,7 +4099,7 @@ body {
   margin-left: auto;
   flex: 0 0 auto;
 }
-/* Ação destrutiva: tom de erro, à direita do "Nova sessão". */
+/* A destructive action: the error tone, right of "New session". */
 .hub-del-all {
   flex: 0 0 auto;
   color: var(--vscode-errorForeground, #f14c4c);
@@ -4118,7 +4118,7 @@ body {
   background: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
 }
-/* Container rolável dos grupos por tempo (único ponto de rolagem). */
+/* The scrollable container of the time groups — the one scrolling point. */
 .ctx-groups {
   flex: 1 1 auto;
   min-height: 0;
@@ -4143,7 +4143,7 @@ body {
   margin-top: 6px;
   align-content: start;
 }
-/* O card é embrulhado por um .tt-wrap.tt-block (item do grid): deixa encolher. */
+/* The card is wrapped in a .tt-wrap.tt-block (a grid item): let it shrink. */
 .ctx-grid > .tt-wrap {
   min-width: 0;
 }
@@ -4179,11 +4179,11 @@ body {
   background: color-mix(in srgb, var(--vscode-focusBorder, #3794ff) 12%, var(--vscode-editorWidget-background));
   box-shadow: inset 0 0 0 1px var(--vscode-focusBorder, #3794ff);
 }
-/* Contexto rodando: borda accent fina à esquerda (igual aos cards de tool busy). */
+/* A running context: a thin accent border on the left, as on a busy tool card. */
 .ctx-card.running {
   border-left: 2px solid var(--vscode-charts-blue, #3794ff);
 }
-/* Spinner inline antes do título do card. Laranja. */
+/* An inline spinner before the card's title. Orange. */
 .ctx-card-spinner {
   display: inline-block;
   width: 9px;
@@ -4203,18 +4203,18 @@ body {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  /* Quebra strings longas sem espaço (ex.: caminhos) p/ não estourar o card. */
+  /* Breaks long strings with no spaces (paths, say) so they do not burst the card. */
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 .ctx-card-meta {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  /* Âmbar discreto */
+  /* A quiet amber */
   color: color-mix(in srgb, var(--vscode-charts-yellow, #d2a25c) 70%, var(--vscode-descriptionForeground, #999));
 }
 
-/* Pasta do contexto como link (abre no gerenciador de arquivos) */
+/* The context's folder as a link, opening in the file manager */
 .hub-folder {
   display: flex;
   align-items: center;
@@ -4224,7 +4224,7 @@ body {
   padding: 2px 0;
   background: transparent;
   border: none;
-  /* Azul de link, como os demais botões/links do hub. */
+  /* Link blue, like the hub's other buttons and links. */
   color: var(--vscode-textLink-foreground);
   font-size: 10.5px;
   cursor: pointer;
@@ -4234,7 +4234,7 @@ body {
 }
 .hub-folder-ico {
   flex: 0 0 auto;
-  /* Ícone realçado: amarelo de pasta em opacidade cheia, destaca contra o texto azul. */
+  /* A highlighted icon: folder yellow at full opacity, standing out against the blue. */
   color: var(--vscode-charts-yellow, #e6b450);
   opacity: 1;
 }
@@ -4243,10 +4243,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  direction: rtl; /* mantém o fim do caminho visível ao truncar */
+  direction: rtl; /* keeps the end of the path visible when it truncates */
   text-align: left;
 }
-/* Ações do card (renomear/apagar) no canto sup. direito; surgem ao passar o mouse. */
+/* The card's actions (rename/delete) at the top right; they appear on hover. */
 .ctx-card-actions {
   position: absolute;
   top: 4px;
@@ -4267,7 +4267,7 @@ body {
   cursor: pointer;
   transition: opacity 0.12s, background 0.12s;
 }
-/* Card sob o mouse: ações totalmente opacas, com fundo sólido p/ contraste. */
+/* The hovered card: the actions go fully opaque, on a solid background for contrast. */
 .ctx-card:hover .ctx-card-edit-btn,
 .ctx-card:hover .ctx-card-reload,
 .ctx-card:hover .ctx-card-remote,
@@ -4285,7 +4285,7 @@ body {
   background: var(--vscode-charts-red, #f85149);
   color: #fff;
 }
-/* Card em edição: input inline no lugar do título. */
+/* A card being edited: an inline input in place of the title. */
 .ctx-card.editing {
   cursor: default;
 }
@@ -4302,7 +4302,7 @@ body {
   outline: none;
 }
 
-/* Classes genéricas reusadas pelo painel (título de coluna, seções, linhas) */
+/* Generic classes reused by the panel: column title, sections, rows */
 .col-title {
   font-size: 10px;
   font-weight: 700;
@@ -4331,7 +4331,7 @@ body {
   background: var(--vscode-inputValidation-warningBackground, rgba(210, 153, 34, 0.15));
   border: 1px solid var(--vscode-inputValidation-warningBorder, transparent);
 }
-/* Aviso de erro/abort do turno (banner acima do composer) */
+/* The turn's error/abort notice, a banner above the composer */
 .turn-error {
   display: flex;
   align-items: flex-start;
@@ -4361,7 +4361,7 @@ body {
   color: var(--vscode-foreground, #fff);
 }
 
-/* ---------- Hub (view da Activity Bar) ---------- */
+/* ---------- Hub (the Activity Bar view) ---------- */
 .hub {
   height: 100%;
   display: flex;
@@ -4394,7 +4394,7 @@ body {
   opacity: 0.85;
   color: var(--vscode-foreground);
   font-variant-numeric: tabular-nums;
-  /* Reset de <button>: parece texto/link, abre as notas da versão no GitHub. */
+  /* A <button> reset: it reads as a link and opens the release notes on GitHub. */
   background: none;
   border: none;
   padding: 0;
@@ -4440,7 +4440,7 @@ body {
   padding: 12px 10px;
 }
 
-/* ===== Account & Usage modal (botão Usage) ===== */
+/* ===== Account & Usage modal (the Usage button) ===== */
 .modal.usage {
   width: 460px;
   max-width: 92vw;
@@ -4508,7 +4508,7 @@ body {
   flex-direction: column;
   gap: 7px;
 }
-/* Cache velho: flags de sessão mostradas esmaecidas (não são o valor "quente"). */
+/* An old cache: the session flags are dimmed — they are not the "hot" value. */
 .usage-rows.usage-dim {
   opacity: 0.55;
 }
@@ -4532,7 +4532,7 @@ body {
   color: var(--vscode-focusBorder, #4da3ff);
   font-weight: 600;
 }
-/* Detalhamento (breakdown) + OTEL: subtítulo e fatias com barra proporcional */
+/* The breakdown and OTEL: a subtitle and slices with a proportional bar */
 .usage-sub-label {
   font-size: 11px;
   font-weight: 600;
@@ -4563,7 +4563,7 @@ body {
 .usage-slice-val {
   font-variant-numeric: tabular-nums;
 }
-/* Insight de atribuição: número em destaque + o que fazer a respeito */
+/* An attribution insight: the figure, and what to do about it */
 .usage-insight {
   margin: 8px 0 10px;
 }
@@ -4576,7 +4576,7 @@ body {
   line-height: 1.4;
   margin-top: 2px;
 }
-/* Cache relido: linha secundária, abaixo da barra */
+/* Cache re-read: a secondary line, below the bar */
 .usage-slice-sub {
   font-size: 11px;
   margin-top: 3px;
@@ -4713,7 +4713,7 @@ body {
   color: var(--vscode-descriptionForeground, #8a8a8a);
   padding: 4px 0;
 }
-/* Aviso de login prestes a vencer (avisa antes de o CLI derrubar a sessão). */
+/* The expiring-login notice, raised before the CLI drops the session. */
 .usage-alert {
   margin-top: 8px;
   padding: 8px 10px;
@@ -4724,7 +4724,7 @@ body {
   background: var(--vscode-inputValidation-warningBackground, rgba(204, 167, 0, 0.12));
   color: var(--vscode-foreground, #e0e0e0);
 }
-/* Selo no card do Skill: o corpo entrou no contexto agora, com o custo estimado. */
+/* The badge on a Skill card: the body entered the context just now, with its cost. */
 .tool-skill-load {
   flex: none;
   margin-left: 6px;
@@ -4740,7 +4740,7 @@ body {
   font-weight: 700;
 }
 
-/* EndConversation: o agente encerrou a sessão sozinho (usuário abusivo/jailbreak). */
+/* EndConversation: the agent ended the session itself (an abusive user, a jailbreak). */
 .tool-card.end-conversation {
   border-left: 3px solid var(--vscode-inputValidation-errorBorder, #be1100);
 }
@@ -4755,7 +4755,7 @@ body {
   color: var(--vscode-descriptionForeground, #8a8a8a);
 }
 
-/* Saída de subagente encaminhada pelo CLI, dentro do card do Task que o lançou. */
+/* Subagent output forwarded by the CLI, inside the card of the Task that launched it. */
 .tool-subagent {
   margin-bottom: 8px;
   padding: 6px 8px;
@@ -4772,7 +4772,7 @@ body {
   color: var(--vscode-charts-purple, #b180d7);
 }
 
-/* Contexto injetado por hook: faixa fina, fora das bolhas — não é fala de ninguém. */
+/* Context injected by a hook: a thin strip, outside the bubbles — nobody's speech. */
 .hook-banner {
   display: flex;
   align-items: center;
@@ -4805,8 +4805,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Aviso do engine (créditos do modo rápido, modelo de subagente restrito). Mesma faixa
-   do hook, em amarelo: é aviso, não erro — a sessão continua. */
+/* An engine notice (fast-mode credits, a restricted subagent model). The same strip
+   as the hook's, in yellow: a notice, not an error — the session continues. */
 .notice-banner {
   display: flex;
   align-items: center;
@@ -4834,9 +4834,9 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Painel Skills (X2). Dois eixos: o select CONFIGURA o listing, o rótulo à direita
-   OBSERVA o que já está no contexto. Cor só por token do tema (charts-*), usada para
-   distinguir ORIGEM e ESTADO — nunca como enfeite. */
+/* The Skills panel (X2). Two axes: the select CONFIGURES the listing, the label on
+   the right OBSERVES what is already in the context. Colour only from theme tokens
+   (charts-*), used to tell ORIGIN and STATE apart — never as decoration. */
 .skills-tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4851,7 +4851,7 @@ body {
   background: var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.06));
   overflow: hidden;
 }
-/* Faixa fina no topo: identifica o tile sem encher de cor. */
+/* A thin strip at the top: it identifies the tile without flooding it with colour. */
 .skills-tile::before {
   content: '';
   position: absolute;
@@ -4931,8 +4931,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Uma cor por ORIGEM, herdada pelo chip, pelo cabeçalho do grupo, pelo badge e pela
-   barra de peso — assim a leitura vertical é imediata. */
+/* One colour per ORIGIN, inherited by the chip, the group's header, the badge and
+   the weight bar — so reading down the column is immediate. */
 .skills-chip.project,
 .skills-group.project,
 .skills-row.project {
@@ -4994,7 +4994,7 @@ body {
   background: var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.06));
   transition: border-color 120ms ease, background 120ms ease;
 }
-/* Filete lateral na cor da origem: identifica sem competir com o conteúdo. */
+/* A side rule in the origin's colour: it identifies without competing with the content. */
 .skills-row::before {
   content: '';
   position: absolute;
@@ -5007,7 +5007,7 @@ body {
 .skills-row:hover {
   border-color: color-mix(in srgb, var(--src-accent, #8a8a8a) 45%, transparent);
 }
-/* Desligada: recuada, mas legível — ainda dá para ler quanto ela custava. */
+/* Switched off: receded, but still readable — what it used to cost still matters. */
 .skills-row.is-off {
   opacity: 0.62;
 }
@@ -5019,7 +5019,7 @@ body {
   background: color-mix(in srgb, var(--vscode-charts-blue, #3794ff) 7%, transparent);
 }
 .skills-row.resident {
-  opacity: 1; /* estado de alerta nunca é esmaecido, mesmo desligada */
+  opacity: 1; /* an alert state is never dimmed, even when switched off */
   border-color: color-mix(in srgb, var(--vscode-inputValidation-warningBorder, #cca700) 50%, transparent);
   background: color-mix(in srgb, var(--vscode-inputValidation-warningBorder, #cca700) 8%, transparent);
 }
@@ -5047,7 +5047,7 @@ body {
   color: var(--src-accent, #8a8a8a);
   background: color-mix(in srgb, var(--src-accent, #8a8a8a) 16%, transparent);
 }
-/* Barra de peso: quanto esta skill pesa no listing, relativa à mais cara. */
+/* The weight bar: what this skill costs in the listing, against the most expensive. */
 .skills-weight {
   height: 2px;
   margin: 6px 0 5px;
@@ -5087,7 +5087,7 @@ body {
 .skills-select:hover {
   border-color: var(--vscode-focusBorder, #3794ff);
 }
-/* Coluna de observação: estado real, nunca inferido do select. */
+/* The observation column: the real state, never inferred from the select. */
 .skills-obs {
   flex: none;
   padding: 1px 7px;
@@ -5114,7 +5114,7 @@ body {
 .skills-resident-tk {
   color: var(--vscode-inputValidation-warningBorder, #cca700);
 }
-/* Contexto injetado por hook: mesmo peso visual das skills, cor neutra — não é listing. */
+/* Context injected by a hook: the same visual weight as the skills, in a neutral colour. */
 .skills-group.hooks {
   --src-accent: var(--vscode-descriptionForeground, #8a8a8a);
 }
@@ -5169,7 +5169,7 @@ body {
   opacity: 0.85;
 }
 
-/* Painel MCP (X4): um card por servidor, tools colapsáveis. */
+/* The MCP panel (X4): one card per server, with collapsible tools. */
 .mcp-refresh {
   margin-left: auto;
   margin-right: 6px;
@@ -5244,7 +5244,7 @@ body {
   color: var(--vscode-descriptionForeground, #8a8a8a);
   overflow-wrap: anywhere;
 }
-/* init mcp_server_errors: motivo pelo qual o servidor foi recusado (erro, não aviso). */
+/* init mcp_server_errors: why the server was refused — an error, not a warning. */
 .usage-alert.mcp-error {
   border-left-color: var(--vscode-inputValidation-errorBorder, #be1100);
   background: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, 0.12));
@@ -5282,7 +5282,7 @@ body {
   text-align: right;
   color: var(--vscode-descriptionForeground, #7a7a7a);
 }
-/* Badge de fonte (ao vivo vs estimativa) ao lado do rótulo USAGE. */
+/* The source badge (live vs estimate) beside the USAGE label. */
 .usage-badge {
   margin-left: 8px;
   padding: 1px 7px;
@@ -5301,7 +5301,7 @@ body {
   background: color-mix(in srgb, var(--vscode-charts-yellow, #d9a23a) 22%, transparent);
   color: var(--vscode-charts-yellow, #d9a23a);
 }
-/* Barra esmaecida quando é estimativa (não é o limite real). */
+/* The bar is dimmed for an estimate: it is not the real limit. */
 .usage-bar-fill.estimate {
   opacity: 0.45;
   background-image: repeating-linear-gradient(
@@ -5344,9 +5344,9 @@ body {
   }
 }
 
-/* Faixa de tarefas em segundo plano (Workflow / run_in_background): fica acima do
-   composer enquanto algo roda em background, mostrando o que cada processo faz.
-   O composer continua liberado — o usuário pode mandar follow-ups. */
+/* The background-task strip (Workflow / run_in_background): it sits above the
+   composer while something runs in the background, showing what each process does.
+   The composer stays enabled — the user can send follow-ups. */
 .bg-tasks {
   flex: 0 0 auto;
   margin: 4px 8px 0;
@@ -5476,7 +5476,7 @@ body {
 .creds-code {
   width: 120px;
   padding: 6px 8px;
-  /* Borda sempre visível (input-border costuma ser transparente em tema escuro). */
+  /* A border that is always visible: input-border is often transparent in a dark theme. */
   border: 1px solid var(--vscode-input-border, var(--vscode-focusBorder, #6e7681));
   border-radius: 4px;
   background: var(--vscode-input-background, rgba(127, 127, 127, 0.12));

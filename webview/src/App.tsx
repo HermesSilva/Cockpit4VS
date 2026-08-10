@@ -186,8 +186,8 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
   // HOST (it reads the folder's CLAUDE.md): when it blocks, it sends 'effortGate' and doesn't run;
   // on confirmation, we re-send the last one with force=true.
   const onSend = (text: string, images: ImageAttachment[], selection?: string) => {
-    // Aba sob Remote Control: quem conduz é o terminal/celular. O host recusa e explica —
-    // não criamos a bolha local, que ficaria órfã.
+    // A tab under Remote Control: the console or phone drives it. The host refuses and says
+    // why, so no local bubble is created — it would be left orphaned.
     if (tab?.remote) {
       send({ kind: 'sendMessage', text, images: images.length ? images : undefined, selection });
       return;
@@ -220,7 +220,7 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
   };
   const onSkills = () => {
     setShowSkills(true);
-    send({ kind: 'skillsRefresh' }); // relê o get_context_usage ao abrir
+    send({ kind: 'skillsRefresh' }); // re-reads get_context_usage as the panel opens
   };
   const onVoiceDict = () => {
     setVoiceDict(null); // shows loading until the host answers
@@ -528,8 +528,8 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
             verbosity={state.config?.verbosity}
             compacting={tab?.compacting === true}
           />
-          {/* Link de exportação: SÓ no fim e quando ocioso. Some ao recomeçar um
-              turno (busy) e reaparece no novo fim ao concluir. */}
+          {/* The export link: only at the end, and only while idle. It disappears when a
+              turn starts and comes back at the new end once it finishes. */}
           {tab?.status !== 'busy' && items.length > 0 && (
             <div className="timeline-export">
               {!exportMenu ? (
@@ -707,7 +707,7 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
           }}
         />
       )}
-      {/* Dicionário (ditado + corretor): aberto pelo botão do composer (chat). */}
+      {/* The dictionary (dictation and spelling), opened from the composer's button. */}
       {showVoiceDict && (
         <VoiceDictModal
           t={t}

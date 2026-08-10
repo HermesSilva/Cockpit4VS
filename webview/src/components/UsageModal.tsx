@@ -144,15 +144,15 @@ export function UsageModal({ t, locale, usage, onClose, onManage, onEnableTracki
                 </div>
               )}
 
-              {/* DETALHAMENTO LOCAL 7d (por modelo / origem) — estimativa de tabela */}
+              {/* THE LOCAL 7-DAY BREAKDOWN, by model and by source — a table estimate */}
               {usage.breakdown && (usage.breakdown.byModel.length > 0 || usage.breakdown.bySource.length > 0) && (
                 <Breakdown t={t} b={usage.breakdown} />
               )}
 
-              {/* ATRIBUIÇÃO 7d: long context, subagentes, cache, tools/MCP */}
+              {/* 7-DAY ATTRIBUTION: long context, subagents, cache, tools and MCP */}
               {usage.attribution && <Attribution t={t} locale={locale} a={usage.attribution} />}
 
-              {/* CONTADOR GLOBAL DE TOKENS (enviado/recebido/total) por dia */}
+              {/* THE GLOBAL TOKEN COUNT — sent, received and total — per day */}
               {usage.tokens && usage.tokens.total > 0 && (
                 <Tokens t={t} locale={locale} tk={usage.tokens} />
               )}
@@ -219,8 +219,8 @@ function SliceRow({
   );
 }
 
-// Detalhamento local da janela de 7d: por modelo e por origem (main/subagent).
-// Sempre estimativa de tabela (badge "≈"), independente do % real da conta.
+// The local breakdown of the 7-day window, by model and by source (main/subagent).
+// Always a table estimate (the "≈" badge), whatever the account's real percentage says.
 function Breakdown({ t, b }: { t: Translator; b: { byModel: UsageSlice[]; bySource: UsageSlice[] } }) {
   const totalModel = b.byModel.reduce((s, x) => s + x.usd, 0) || 1;
   const totalSrc = b.bySource.reduce((s, x) => s + x.usd, 0) || 1;

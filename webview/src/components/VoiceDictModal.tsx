@@ -12,9 +12,9 @@ interface Props {
 
 type Tab = 'terms' | 'reps' | 'spell';
 
-// Dictionaries modal (per login), in tabs: dictation terms, "heard → written"
+// The dictionaries modal (per login), in tabs: dictation terms, "heard → written"
 // replacements and the spell-checker dictionary. Each tab is an editable LIST
-// (altera inline, adiciona linha, remove). Edita um rascunho local; salva no host.
+// (edited inline, with rows added and removed). It edits a local draft and saves to the host.
 export function VoiceDictModal({ t, data, onSave, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('terms');
   const [terms, setTerms] = useState<string[]>([]);

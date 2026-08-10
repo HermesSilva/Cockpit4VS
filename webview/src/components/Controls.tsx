@@ -169,12 +169,12 @@ export function Controls({
 
 interface ModelSelectProps {
   t: Translator;
-  value: string; // selecionado ('__custom__' quando em modo custom)
+  value: string; // the selected one ('__custom__' while in custom mode)
   models: string[];
   meta?: Record<string, ModelMeta>;
   known: boolean; // is config.model in the list?
   currentModel: string;
-  defaultFor?: string; // o que 'default' resolve (p/ rótulo)
+  defaultFor?: string; // what 'default' resolves to, for the label
   onSelect: (v: string) => void;
   onRemove: (v: string) => void;
 }
@@ -204,7 +204,7 @@ function ModelSelect({
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
-  // Modelo custom aplicado (fora da lista) aparece no topo.
+  // A custom model in use, outside the list, is shown at the top.
   const rows: string[] = [];
   if (!known && currentModel && currentModel !== CUSTOM) rows.push(currentModel);
   rows.push(...models);
@@ -216,7 +216,7 @@ function ModelSelect({
       meta?.[value] ?? (value === 'default' && defaultFor ? meta?.[defaultFor] : undefined);
     const ctx = md?.contextTokens ? formatContext(md.contextTokens) : undefined;
     if (!ctx) return base;
-    // Evita "… 1M · 1M" quando o label já traz o sufixo 1M
+    // Avoids "… 1M · 1M" when the label already carries the 1M suffix
     if (ctx === '1M' && /1M\s*$/.test(base)) return base;
     return `${base} · ${ctx}`;
   })();
@@ -317,7 +317,7 @@ function priceTitle(md?: ModelMeta): string {
 
 // Estimated relative token consumption per effort level. It is NOT an official
 // factor (Anthropic publishes no per-effort multiplier) — only an order of
-// grandeza p/ orientar a escolha. Ancorado em high = 1x (default da API).
+// magnitude to guide the choice. Anchored at high = 1x, the API's default.
 // Recalibrate here if you want other values.
 const EFFORT_MULT: Record<string, number> = {
   low: 0.3,

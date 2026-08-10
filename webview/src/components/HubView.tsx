@@ -28,7 +28,7 @@ interface Props {
   cliVersion?: string;
   cliLatest?: string;
   stats?: StatsSnapshot;
-  busy?: boolean; // contexto ativo processando um turno → spinner no card
+  busy?: boolean; // an open context working through a turn, so the card spins
   config?: SessionConfig;
   activeModel?: string;
   loggedIn: boolean;
@@ -171,7 +171,7 @@ export function HubView({
         )}
       </header>
 
-      {/* Barra de botões */}
+      {/* The button bar */}
       <div className="ctx-panel-actions">
         <Tooltip title={t('usage.title')} text={t('tip.usage.desc')}>
           <button type="button" className="ctx-link" onClick={onUsage}>
@@ -225,7 +225,7 @@ export function HubView({
       <Onboarding t={t} cliMissing={cliMissing} loggedIn={loggedIn} hasSessions={sessions.length > 0} />
 
       <div className="ctx-panel-body">
-        {/* Painel de informações do contexto ativo */}
+        {/* The open context's information panel */}
         <section className="ctx-panel-info">
           {cliMissing ? (
             <div className="muted">{t('status.cliMissing')}</div>
@@ -253,7 +253,7 @@ export function HubView({
 
         <div className="ctx-panel-sep" role="separator" />
 
-        {/* Grade de contextos salvos (sessões) */}
+        {/* The grid of saved contexts (sessions) */}
         <section className="ctx-panel-grid-wrap">
           <div className="ctx-panel-grid-head">
             <span className="col-title">{t('ctxPanel.contexts')}</span>
@@ -457,7 +457,7 @@ function SessionCard({
   );
 }
 
-// Vida do cache (TTL de 1h): barra do tempo restante + checkbox de keep-alive.
+// Cache life (a 1h TTL): a bar of the remaining time plus the keep-alive checkbox.
 // `now` comes from the parent's 1s tick (live countdown).
 function CacheLife({ t, stats, now }: { t: Translator; stats: StatsSnapshot; now: number }) {
   const expiresAt = stats.cacheExpiresAt ?? 0;
@@ -544,7 +544,7 @@ function ContextInfo({
       </div>
       {pct >= 0.85 && <div className="alert">{t('alert.contextHigh')}</div>}
 
-      {/* Duração da sessão */}
+      {/* The session duration */}
       {elapsed != null && (
         <Tooltip className="tt-block" title={t('stats.session.duration')} text={t('tip.ctx.duration')} meta={meta(t, 'local', 'high')}>
           <div className="stat-row stat-row-session">
@@ -585,7 +585,7 @@ function ContextInfo({
         </div>
       </div>
 
-      {/* Custo da sessão com badge estimado/real */}
+      {/* The session cost, badged as estimated or real */}
       <div className="ctx-info-grid">
         <div>
           <div className="stats-section-title">{t('stats.cost')}</div>
@@ -606,8 +606,8 @@ function ContextInfo({
         </div>
       </div>
 
-      {/* Atividade da sessão: contadores persistentes (turnos, pico, compactações,
-          resets de cache). Só aparece quando há ao menos um turno consolidado. */}
+      {/* Session activity: the persistent counters — turns, peak, compactions, cache
+          resets. Shown only once at least one turn has been consolidated. */}
       {(stats.turnCount ?? 0) > 0 && (
         <div className="ctx-info-grid">
           <div>
@@ -618,7 +618,7 @@ function ContextInfo({
             {stats.peakContextUsed != null && stats.peakContextUsed > 0 && (() => {
               const peakPct = fmtPct(Math.min(1, stats.peakContextUsed / (stats.contextLimit || 1)));
               const peakStr = `${fmtCompact(stats.peakContextUsed)} (${peakPct})`;
-              // Sessões antigas não têm peakCacheTokens persistido: usa o cache atual como fallback
+              // Older sessions have no persisted peakCacheTokens: fall back to the current cache
               const peakCache = stats.peakCacheTokens ?? (stats.cacheReadTokens + stats.cacheCreateTokens);
               const v = peakCache > 0 ? `${peakStr} · cache ${fmtCompact(peakCache)}` : peakStr;
               return <Row k={t('stats.activity.peak')} v={v} tip={t('tip.ctx.peak')} tipMeta={meta(t, 'computed', 'high')} />;
@@ -647,9 +647,9 @@ function ContextInfo({
         </div>
       )}
 
-      {/* Aceitação de ferramentas e log de negações (E5) NÃO ficam aqui: o Hub é a
-          tela inicial, e essa auditoria é da conversa. Os dados continuam sendo
-          coletados/persistidos (StatsAggregator + StatsStore) para quem os exibir. */}
+      {/* Tool acceptance and the denial log (E5) do NOT belong here: the Hub is the
+          landing screen, and that audit belongs to a conversation. The data is still
+          collected and persisted (StatsAggregator + StatsStore) for whoever shows it. */}
     </>
   );
 }

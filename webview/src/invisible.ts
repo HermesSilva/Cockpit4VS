@@ -1,9 +1,9 @@
-// Caracteres que um comando pode carregar sem aparecer na tela: zero-width, controles de
-// direção (bidi), espaços Unicode que não são o espaço comum, tabs usados como padding e
-// controles C0. Quem aprova a execução aqui é uma pessoa lendo o comando — se parte dele é
-// invisível, a leitura não decide nada. A CLI endureceu o mesmo ponto em 2.1.221/2.1.223.
+// Characters a command can carry without appearing on screen: zero-width ones, direction
+// (bidi) controls, Unicode spaces that are not the ordinary space, tabs used as padding and
+// C0 controls. What approves the run here is a person reading the command — and if part of it
+// is invisible, that reading decides nothing. The CLI hardened the same point in 2.1.221/2.1.223.
 
-/** Um pedaço do texto: `code` presente = caractere invisível (codepoint). */
+/** A slice of the text: a present `code` means an invisible character (its codepoint). */
 export interface Seg {
   text: string;
   code?: number;
@@ -33,34 +33,34 @@ const NAMES: Record<number, string> = {
 };
 
 function isInvisible(cp: number): boolean {
-  if (cp === 0x0a) return false; // quebra de linha é legítima e já se vê
-  if (cp === 0x09) return true; // tab: padding que empurra conteúdo para fora da vista
+  if (cp === 0x0a) return false; // a line break is legitimate, and it is visible
+  if (cp === 0x09) return true; // a tab is padding that pushes content out of sight
   if (cp < 0x20 || cp === 0x7f) return true; // controles C0 + DEL
   if (cp === 0x00a0 || cp === 0x00ad) return true;
-  if (cp >= 0x2000 && cp <= 0x200f) return true; // espaços finos + zero-width + marcas bidi
-  if (cp >= 0x202a && cp <= 0x202f) return true; // embeddings/overrides + narrow nbsp
+  if (cp >= 0x2000 && cp <= 0x200f) return true; // thin spaces, zero-width ones and bidi marks
+  if (cp >= 0x202a && cp <= 0x202f) return true; // embeddings and overrides, plus the narrow nbsp
   if (cp >= 0x2060 && cp <= 0x2064) return true;
   if (cp >= 0x2066 && cp <= 0x2069) return true;
   if (cp === 0x205f || cp === 0x3000 || cp === 0xfeff) return true;
   if (cp >= 0xfff9 && cp <= 0xfffb) return true; // interlinear annotation
-  if (cp >= 0xe0000 && cp <= 0xe007f) return true; // tags (texto oculto)
+  if (cp >= 0xe0000 && cp <= 0xe007f) return true; // tags (hidden text)
   return false;
 }
 
-/** Rótulo do caractere: "U+200B ZERO WIDTH SPACE" (o nome só para os conhecidos). */
+/** The character's label: "U+200B ZERO WIDTH SPACE" — the name only for the known ones. */
 export function codeLabel(cp: number): string {
   const hex = `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`;
   return NAMES[cp] ? `${hex} ${NAMES[cp]}` : hex;
 }
 
-/** Marca visível do caractere invisível. */
+/** A visible mark standing in for the invisible character. */
 export function codeMark(cp: number): string {
   if (cp === 0x09) return '⇥';
   if (cp === 0x0d) return '⏎';
   return '·';
 }
 
-/** Quebra o texto em pedaços visíveis e invisíveis, preservando a ordem e o conteúdo. */
+/** Splits the text into visible and invisible slices, preserving order and content. */
 export function splitInvisible(text: string): Seg[] {
   const out: Seg[] = [];
   let buf = '';

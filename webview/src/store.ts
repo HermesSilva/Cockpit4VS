@@ -45,7 +45,7 @@ export interface TabState {
   cwd?: string;
   session?: { sessionId: string; model?: string; cwd?: string; mode?: string };
   items: TimelineItem[];
-  historyLoaded?: boolean; // 1ª mensagem 'history' já chegou (timeline pronta p/ pintar)
+  historyLoaded?: boolean; // the first 'history' message has arrived, so the timeline can paint
   stats?: StatsSnapshot;
   todos: TodoItem[];
   slashCommands: string[];
@@ -279,7 +279,7 @@ function tabReducer(tab: TabState, msg: HostToWebview): TabState {
       const next = { ...tab, items: [...tab.items, item] };
       return todos ? { ...next, todos } : next;
     }
-    // Corpo do SKILL.md entrou no contexto: sela o card do Skill que o disparou.
+    // A SKILL.md body entered the context: it seals the card of the Skill that pulled it in.
     case 'skillLoaded': {
       const items = tab.items.map((i) =>
         i.kind === 'tool' && i.id === msg.toolUseId
@@ -288,7 +288,7 @@ function tabReducer(tab: TabState, msg: HostToWebview): TabState {
       );
       return { ...tab, items };
     }
-    // Hook injetou contexto (skill inclusive): item próprio, já que não há card para selar.
+    // A hook injected context, a skill included: an item of its own, since there is no card to seal.
     case 'hookInjected': {
       const id = `hook:${msg.hook}`;
       if (tab.items.some((i) => i.kind === 'hook' && i.id === id)) return tab;
@@ -302,7 +302,7 @@ function tabReducer(tab: TabState, msg: HostToWebview): TabState {
       };
       return { ...tab, items: [...tab.items, item] };
     }
-    // Aviso do engine (créditos do modo rápido, modelo de subagente restrito, …).
+    // An engine notice: fast-mode credits, a restricted subagent model, and so on.
     case 'engineNotice': {
       if (tab.items.some((i) => i.kind === 'notice' && i.id === msg.id)) return tab;
       const item: NoticeItem = {
@@ -314,8 +314,8 @@ function tabReducer(tab: TabState, msg: HostToWebview): TabState {
       };
       return { ...tab, items: [...tab.items, item] };
     }
-    // Compactação (S11): enquanto acontece é só um estado (o turno não travou); a fronteira
-    // vira faixa na linha do tempo com o tamanho antes/depois.
+    // Compaction (S11): while it happens it is only a state — the turn is not stuck; the
+    // boundary then becomes a strip in the timeline with the size before and after.
     case 'compaction': {
       if (msg.active) return { ...tab, compacting: true };
       const base = { ...tab, compacting: false };
@@ -335,7 +335,7 @@ function tabReducer(tab: TabState, msg: HostToWebview): TabState {
       };
       return { ...base, items: [...base.items, item] };
     }
-    // Texto de subagente encaminhado pelo CLI: acumula no card do Task que o lançou.
+    // Subagent text forwarded by the CLI: it accumulates on the card of the Task that launched it.
     case 'subagentText': {
       let found = false;
       const items = tab.items.map((i) => {

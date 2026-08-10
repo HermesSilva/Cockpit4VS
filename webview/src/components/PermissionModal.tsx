@@ -65,8 +65,8 @@ export function PermissionModal({ t, req, onDecision }: Props) {
 
           {req.description && <div className="perm-desc">{req.description}</div>}
 
-          {/* O comando carrega caracteres que não se veem (zero-width, bidi, padding de tab):
-              quem aprova precisa saber ANTES de decidir, não depois. */}
+          {/* The command carries characters nobody can see (zero-width, bidi, tab padding):
+              whoever approves has to know BEFORE deciding, not after. */}
           {preview?.kind === 'cmd' && hasInvisible(preview.text) && (
             <div className="perm-warn">{t('permission.invisibleChars')}</div>
           )}

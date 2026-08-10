@@ -42,8 +42,8 @@ function hookEventHint(t: Translator, event: string): string {
     : t('hookEvent.unknown', event);
 }
 
-// Grupos por origem. `source` vem do engine (get_context_usage): medido no CLI 2.1.217
-// como 'projectSettings' | 'userSettings' | 'built-in'. Qualquer valor novo cai em 'other'.
+// Groups by origin. `source` comes from the engine (get_context_usage): measured on CLI
+// 2.1.217 as 'projectSettings' | 'userSettings' | 'built-in'. Anything new falls into 'other'.
 type Group = 'project' | 'user' | 'built-in' | 'other';
 const GROUP_ORDER: Group[] = ['project', 'user', 'built-in', 'other'];
 
@@ -54,13 +54,13 @@ export function groupOf(source?: string): Group {
   return 'other';
 }
 
-/** O eixo de OBSERVAÇÃO (o que está acontecendo), separado do de configuração. */
+/** The OBSERVATION axis — what is happening — kept apart from the configuration one. */
 type Observed = 'active' | 'resident' | 'light';
 
 /**
- * `resident` é o estado que não pode ser escondido: a skill foi desligada mas o corpo dela
- * continua no contexto — desligar impede re-disparo, não descarrega (o engine não oferece
- * como descarregar uma skill isolada).
+ * `resident` is the state that must not be hidden: the skill was switched off but its body
+ * is still in the context — switching off prevents a re-trigger, it does not unload, and the
+ * engine offers no way to unload one skill on its own.
  */
 export function observed(s: SkillState): Observed {
   if (s.active !== true) return 'light';
@@ -68,9 +68,9 @@ export function observed(s: SkillState): Observed {
   return off ? 'resident' : 'active';
 }
 
-// Painel "Skills" (X2). Dois eixos lado a lado: o dropdown CONFIGURA o que entra no
-// listing; a coluna ao lado OBSERVA o que já está no contexto. Nenhum número inventado —
-// metadados são medidos pelo engine, o corpo carregado é estimativa e vai rotulado.
+// The "Skills" panel (X2). Two axes side by side: the dropdown CONFIGURES what enters the
+// listing; the column beside it OBSERVES what is already in the context. No invented numbers —
+// metadata is measured by the engine, the loaded body is an estimate and is labelled as one.
 export function SkillsModal({
   t,
   skills,
@@ -105,11 +105,11 @@ export function SkillsModal({
     return GROUP_ORDER.filter((g) => map.has(g)).map((g) => ({ group: g, items: map.get(g)! }));
   }, [list]);
 
-  // Somas: metadados vêm medidos do engine; o corpo carregado é ESTIMADO (e só existe
-  // quando conseguimos medir a mensagem injetada), por isso os dois totais são separados.
+  // The sums: metadata comes measured from the engine, while the loaded body is ESTIMATED —
+  // and only exists when the injected message could be measured — so the totals stay apart.
   const activeTokens = list.reduce((a, s) => a + (s.active ? (s.activeTokens ?? 0) : 0), 0);
   const activeCount = list.filter((s) => s.active).length;
-  // Escala da barrinha de peso: relativa à skill mais cara do listing.
+  // The weight bar's scale, relative to the listing's most expensive skill.
   const maxMeta = list.reduce((a, s) => Math.max(a, s.metaTokens ?? 0), 0);
   const shown = filter === 'all' ? groups : groups.filter((g) => g.group === filter);
 
@@ -273,7 +273,7 @@ function SkillRow({
   const obs = observed(s);
   const group = groupOf(s.source);
   const off = s.override === 'off';
-  // Barra de peso: proporção do custo desta skill em relação à mais cara do listing.
+  // The weight bar: this skill's cost against the most expensive one in the listing.
   const weight = maxMeta > 0 ? Math.max(2, Math.round(((s.metaTokens ?? 0) / maxMeta) * 100)) : 0;
   return (
     <div className={`skills-row ${group} ${obs} ${off ? 'is-off' : ''}`}>
@@ -298,7 +298,7 @@ function SkillRow({
             ) : (
               <span className="skills-active-tk"> · {t('skills.activeUnknown')}</span>
             ))}
-          {/* Desligada e ainda residente: o número é o que continua ocupando contexto. */}
+          {/* Switched off and still resident: the number is what still occupies the context. */}
           {obs === 'resident' && (
             <span className="skills-resident-tk">
               {' · '}
@@ -307,7 +307,7 @@ function SkillRow({
                 : t('skills.residentUnknown')}
             </span>
           )}
-          {/* Carga por hook é INFERIDA (o corpo injetado casa com o SKILL.md em disco). */}
+          {/* A load through a hook is INFERRED: the injected body matches the SKILL.md on disk. */}
           {s.invokedBy === 'hook' && (s.active || obs === 'resident') && (
             <span className="skills-via-hook"> · {t('skills.viaHook')}</span>
           )}

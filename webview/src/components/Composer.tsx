@@ -43,8 +43,8 @@ interface Props {
   onCredentials?: () => void; // abre o cofre de credenciais (TOTP 2FA)
   onRemoteControl?: () => void; // publishes this session for remote control (phone/app)
   canRemoteControl?: boolean; // there is a live session id to publish
-  remoteActive?: boolean; // a aba já está sob Remote Control (terminal conduzindo)
-  remotePhase?: 'connecting' | 'active' | 'failed'; // o que se SABE da conexão remota
+  remoteActive?: boolean; // the tab is already under Remote Control, driven from the console
+  remotePhase?: 'connecting' | 'active' | 'failed'; // what is actually KNOWN about the remote connection
 }
 
 interface PendingImage {
@@ -315,8 +315,8 @@ export function Composer({
     send({ kind: 'resolvePaths', requestId, absPaths });
   };
 
-  // Drag-to-attach: solta arquivos no composer. Usa o path do arquivo (ou o
-  // uri-list) to attach; images without a path come in as bitmaps.
+  // Drag-to-attach: files dropped on the composer. It attaches by path (or by the
+  // uri-list); images with no path arrive as bitmaps.
   const onDrop = (e: DragEvent<HTMLTextAreaElement>) => {
     const dt = e.dataTransfer;
     if (!dt) return;
@@ -570,7 +570,7 @@ export function Composer({
       return;
     }
     const query = m[2];
-    const start = caret - query.length - 1; // posição do '@'
+    const start = caret - query.length - 1; // the position of the '@'
     setMention({ start, query });
     setMentionIdx(0);
     window.clearTimeout(mentionTimer.current);
@@ -839,7 +839,7 @@ export function Composer({
             </Tooltip>
           )}
           {onRemoteControl && (() => {
-            // Falha não é "desligado": o indicador fica, e o clique é reconectar.
+            // A failure is not "off": the indicator stays, and the click reconnects.
             const label = remoteLabel(t, remoteActive, remotePhase);
             return (
             <Tooltip text={label}>
@@ -849,7 +849,7 @@ export function Composer({
                   remotePhase === 'connecting' ? ' connecting' : ''
                 }${remotePhase === 'failed' ? ' failed' : ''}`}
                 onClick={onRemoteControl}
-                // Ligado, o botão continua clicável: é o desligar (toggle).
+                // While on, the button stays clickable: that click is the toggle off.
                 disabled={!remoteActive && (disabled || !canRemoteControl)}
                 aria-pressed={remoteActive}
                 aria-label={label}
@@ -912,7 +912,7 @@ export function Composer({
   );
 }
 
-/** O que o botão diz é o que se sabe da conexão — nunca "ligado" por otimismo. */
+/** The button says what is known about the connection — never "on" out of optimism. */
 function remoteLabel(t: Translator, active?: boolean, phase?: 'connecting' | 'active' | 'failed'): string {
   if (phase === 'failed') return t('remote.failed');
   if (phase === 'connecting') return t('remote.connecting');
