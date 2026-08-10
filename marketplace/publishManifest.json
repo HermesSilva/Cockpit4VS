@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json.schemastore.org/vsix-publish",
+  "categories": [ "coding", "tools" ],
+  "identity": {
+    "internalName": "tootega-cockpit-vs"
+  },
+  "overview": "overview.md",
+  "priceCategory": "free",
+  "publisher": "HermesSilva",
+  "private": false,
+  "qna": true,
+  "repo": "https://github.com/HermesSilva/Cockpit4VS"
+}

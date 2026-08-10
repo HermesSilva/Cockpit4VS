@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="Tootega.Cockpit.a0f4d7c2-6b1e-4f8a-9c3d-2e5b7a1f0d64" Version="1.0.6" Language="en-US" Publisher="Tootega Pesquisa e Inovação" />
+    <Identity Id="Tootega.Cockpit.a0f4d7c2-6b1e-4f8a-9c3d-2e5b7a1f0d64" Version="1.0.18" Language="en-US" Publisher="Hermes Silva" />
     <DisplayName>Tootega Cockpit for Claude Code</DisplayName>
     <Description xml:space="preserve">A rich GUI for Claude Code inside Visual Studio. The interface is only a presentation and control layer over the Claude Code CLI — all orchestration (agent loop, tools, subagents, context, cache, permissions, MCP, hooks, skills) lives in the CLI. Unofficial; not affiliated with Anthropic.</Description>
-    <MoreInfo>https://github.com/hermessilva/Cockpit</MoreInfo>
+    <MoreInfo>https://github.com/HermesSilva/Cockpit4VS</MoreInfo>
     <License>LICENSE.txt</License>
+    <ReleaseNotes>https://github.com/HermesSilva/Cockpit4VS/blob/main/CHANGELOG.md</ReleaseNotes>
     <Icon>Resources\CockpitExtension.png</Icon>
-    <Tags>claude, claude code, ai, agent, anthropic, chat</Tags>
+    <Tags>claude, claude code, ai, agent, anthropic, chat, assistant, copilot, llm, cli</Tags>
   </Metadata>
   <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Professional" Version="[17.0,)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
     <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,)">
       <ProductArchitecture>amd64</ProductArchitecture>
     </InstallationTarget>
