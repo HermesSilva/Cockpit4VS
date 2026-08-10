@@ -82,14 +82,23 @@ In-proc VSIX code runs inside devenv. Two rules that are not negotiable:
 `Log` is the exception by design: the pane is created on the UI thread once, and writes go
 through `OutputStringThreadSafe` so CLI reader threads can log freely.
 
-## 6. Build
+## 6. Build and test
 
 ```powershell
-msbuild Cockpit4VS.sln /t:Restore,Rebuild /p:Configuration=Debug
+./build.ps1                 # build + tests
+./build.ps1 -Deploy         # also install into the experimental instance
+./build.ps1 -SkipTests
 ```
 
 Output: `src\Tootega.Cockpit\bin\Debug\Tootega.Cockpit.vsix`.
 F5 launches the experimental instance (`devenv /rootsuffix Exp`).
+
+**Use the VS MSBuild, not `dotnet build`/`dotnet test`.** The VSIX project is a classic
+(non-SDK) csproj and the .NET SDK cannot resolve its VSSDK references; the tests run under
+`vstest.console.exe` for the same reason. `build.ps1` locates both via `vswhere`.
+
+The test project declares `System.Text.Json` itself, because the extension excludes it at
+runtime (the IDE provides it) and tests run outside devenv.
 
 The build must stay at **zero warnings**. The VSSDK and vs-threading analyzers catch real
 in-proc bugs; suppress one only with a `#pragma` and a comment saying why.
