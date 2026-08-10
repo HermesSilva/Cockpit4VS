@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <!-- The VS shell (devenv 18.x) still runs on .NET Framework 4.7.2, so an in-proc
+         VSIX has to target it too. See Docs/architecture.md. -->
+    <CockpitTargetFramework>net472</CockpitTargetFramework>
+    <CockpitVersion>1.0.0</CockpitVersion>
+    <Company>Tootega Pesquisa e Inovação</Company>
+    <Product>Tootega Cockpit for Claude Code</Product>
+    <Copyright>Copyright (c) Tootega Pesquisa e Inovação</Copyright>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+</Project>

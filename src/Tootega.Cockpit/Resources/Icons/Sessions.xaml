@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Saved contexts: history, i.e. conversations kept over time. -->
+<Viewbox xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+         Width="16" Height="16">
+  <Canvas Width="16" Height="16">
+    <Rectangle Width="16" Height="16" Fill="Transparent" />
+    <Ellipse Canvas.Left="2.6" Canvas.Top="2.6" Width="10.8" Height="10.8"
+             Stroke="#FF2B2B2B" StrokeThickness="1.3" />
+    <Path Stroke="#FFE8792B" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+          Data="M 8 5.1 L 8 8 L 10.7 9.6" />
+  </Canvas>
+</Viewbox>

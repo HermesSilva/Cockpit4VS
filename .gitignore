@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+dist/
+*.vsix
+*.user
+*.suo
+
+# Visual Studio
+.vs/
+
+# Node (webview build)
+node_modules/
+
+# NuGet
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Generated design-review artifact (scripts/preview-icons.ps1)
+scripts/icon-preview.png

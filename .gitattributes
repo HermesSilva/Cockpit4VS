@@ -1,0 +1,21 @@
+# Normalize to LF in the repository; check out native on Windows.
+* text=auto
+
+*.cs        text diff=csharp
+*.csproj    text
+*.sln       text eol=crlf
+*.vsct      text
+*.xaml      text
+*.resx      text
+*.imagemanifest text
+*.vsixmanifest  text
+*.ps1       text
+*.md        text
+*.json      text
+*.html      text
+*.css       text
+*.ts        text
+*.tsx       text
+
+*.png       binary
+*.vsix      binary

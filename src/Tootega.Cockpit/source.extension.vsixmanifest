@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="Tootega.Cockpit.a0f4d7c2-6b1e-4f8a-9c3d-2e5b7a1f0d64" Version="1.0.0" Language="en-US" Publisher="Tootega Pesquisa e Inovação" />
+    <DisplayName>Tootega Cockpit for Claude Code</DisplayName>
+    <Description xml:space="preserve">A rich GUI for Claude Code inside Visual Studio. The interface is only a presentation and control layer over the Claude Code CLI — all orchestration (agent loop, tools, subagents, context, cache, permissions, MCP, hooks, skills) lives in the CLI. Unofficial; not affiliated with Anthropic.</Description>
+    <MoreInfo>https://github.com/hermessilva/Cockpit</MoreInfo>
+    <License>LICENSE.txt</License>
+    <Icon>Resources\CockpitExtension.png</Icon>
+    <Tags>claude, claude code, ai, agent, anthropic, chat</Tags>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[18.0,19.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+  </Installation>
+  <Dependencies>
+    <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" d:Source="Manual" Version="[4.7.2,)" />
+  </Dependencies>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[18.0,19.0)" DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+    <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|" />
+    <Asset Type="Microsoft.VisualStudio.ImageManifest" d:Source="File" Path="Resources\Cockpit.imagemanifest" />
+  </Assets>
+</PackageManifest>

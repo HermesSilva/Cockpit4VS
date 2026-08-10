@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none';
+                 img-src https://cockpit.invalid data: blob:;
+                 media-src https://cockpit.invalid blob:;
+                 script-src https://cockpit.invalid;
+                 style-src https://cockpit.invalid 'unsafe-inline';
+                 font-src https://cockpit.invalid;
+                 connect-src https://cockpit.invalid;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tootega Cockpit</title>
+  <!--
+    Two style hooks, in this order:
+      #vs-theme  - written by the host on load and on every theme change; it defines the
+                   --vscode-* variables the bundle's CSS reads.
+      main.css   - the bundle's own styles, which consume those variables.
+    The order matters: the variables have to exist before the rules that use them.
+  -->
+  <style id="vs-theme"></style>
+  <link rel="stylesheet" href="main.css" />
+</head>
+<body>
+  <div id="root"></div>
+  <script src="main.js"></script>
+</body>
+</html>

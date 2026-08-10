@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cockpit image catalog.
+
+  Every icon is vector XAML, not a bitmap strip: the VS ImageService recolors it for the
+  active theme (light / dark / blue / high contrast), so a single source stays legible
+  everywhere. AllowColorInversion is left at its default (true) — inversion preserves hue,
+  which keeps the neutral stroke readable on dark backgrounds while the Cockpit orange
+  stays orange.
+
+  The GUID/ID pairs below are mirrored in CockpitPackage.vsct (as guidCockpitImages /
+  the icon IDSymbols) and in CockpitMonikers.cs. All three must agree.
+-->
+<ImageManifest xmlns="http://schemas.microsoft.com/VisualStudio/ImageManifestSchema/2014">
+  <Symbols>
+    <String Name="Resources" Value="/Tootega.Cockpit;Component/Resources" />
+    <Guid Name="CockpitImages" Value="{092f81e8-c52d-446a-a584-57de6f62f2a1}" />
+
+    <ID Name="CockpitIcon" Value="1000" />
+    <ID Name="NewSessionIcon" Value="1001" />
+    <ID Name="InterruptIcon" Value="1002" />
+    <ID Name="SessionsIcon" Value="1003" />
+    <ID Name="SettingsIcon" Value="1004" />
+    <ID Name="ReloadIcon" Value="1005" />
+    <ID Name="HubIcon" Value="1006" />
+    <ID Name="AccountIcon" Value="1007" />
+    <ID Name="ApiKeyIcon" Value="1008" />
+    <ID Name="UsageIcon" Value="1009" />
+    <ID Name="Utf8FixIcon" Value="1010" />
+  </Symbols>
+
+  <Images>
+    <Image Guid="$(CockpitImages)" ID="$(CockpitIcon)">
+      <Source Uri="$(Resources)/Icons/Cockpit.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(NewSessionIcon)">
+      <Source Uri="$(Resources)/Icons/NewSession.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(InterruptIcon)">
+      <Source Uri="$(Resources)/Icons/Interrupt.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(SessionsIcon)">
+      <Source Uri="$(Resources)/Icons/Sessions.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(SettingsIcon)">
+      <Source Uri="$(Resources)/Icons/Settings.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(ReloadIcon)">
+      <Source Uri="$(Resources)/Icons/Reload.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(HubIcon)">
+      <Source Uri="$(Resources)/Icons/Hub.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(AccountIcon)">
+      <Source Uri="$(Resources)/Icons/Account.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(ApiKeyIcon)">
+      <Source Uri="$(Resources)/Icons/ApiKey.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(UsageIcon)">
+      <Source Uri="$(Resources)/Icons/Usage.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(Utf8FixIcon)">
+      <Source Uri="$(Resources)/Icons/Utf8Fix.xaml" />
+    </Image>
+  </Images>
+</ImageManifest>

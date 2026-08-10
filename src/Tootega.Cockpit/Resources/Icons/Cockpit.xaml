@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cockpit mark: a gauge. The product is about consumption transparency, so the
+     identity is the instrument that shows it, not a generic chat bubble. -->
+<Viewbox xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+         Width="16" Height="16">
+  <Canvas Width="16" Height="16">
+    <Rectangle Width="16" Height="16" Fill="Transparent" />
+    <!-- dial: 270deg arc, open at the bottom -->
+    <Path Stroke="#FF2B2B2B" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+          Data="M 3.757 13.243 A 6 6 0 1 1 12.243 13.243" />
+    <!-- needle, swept into the upper-right band -->
+    <Path Stroke="#FFE8792B" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+          Data="M 8 9 L 10.9 5.4" />
+    <Ellipse Canvas.Left="6.85" Canvas.Top="7.85" Width="2.3" Height="2.3" Fill="#FF2B2B2B" />
+  </Canvas>
+</Viewbox>
