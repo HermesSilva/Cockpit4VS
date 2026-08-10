@@ -20,7 +20,6 @@ import type {
 import { send } from './vscodeApi';
 import { t } from './strings';
 import { CliMissing } from './components/CliMissing';
-import { FolderBar } from './components/FolderBar';
 import { Timeline, seedTaskTimings } from './components/Timeline';
 import { Composer } from './components/Composer';
 import { HubView } from './components/HubView';
@@ -493,16 +492,11 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
         />
       )}
 
-      {tab && (
-        <FolderBar
-          t={t}
-          cwd={tab.cwd}
-          busy={tab.status === 'busy'}
-          onChange={() => send({ kind: 'setTabCwd', tabId: tab.id })}
-          onOpen={(path) => send({ kind: 'openFolder', path })}
-        />
-      )}
-
+      {/*
+        No folder strip here: in Visual Studio the conversation's folder is on the tool
+        window's own toolbar, which both names it and changes it. Saying it twice, one row
+        apart, only raises the question of whether the two are the same thing.
+      */}
       <div className="scroll-wrap">
         {cliLoading ? (
           <div className="cockpit-loader" role="status" aria-label="Cockpit">

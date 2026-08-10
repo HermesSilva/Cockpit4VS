@@ -7,10 +7,17 @@
   <Commands package="guidCockpitPackage">
 
     <Menus>
-      <!-- One submenu under Extensions keeps the top-level menu bar clean; everything
-           the Cockpit contributes lives under a single, findable entry. -->
-      <Menu guid="guidCockpitCmdSet" id="CockpitSubMenu" priority="0x0100" type="Menu">
-        <Parent guid="guidCockpitCmdSet" id="CockpitSubMenuGroup" />
+      <!--
+        One submenu under Extensions keeps the top-level menu bar clean; everything the
+        Cockpit contributes lives under a single, findable entry.
+
+        Parented to the Extensions menu itself, rather than to the IDG_VS_EXTENSIONS group
+        it used to hang from. The group is still declared in vsshlids.h, but the two
+        extensions on this machine that do get a menu bar entry both parent directly — one
+        here, one on IDG_VS_MM_TOOLSADDINS, which the shell reparents under Extensions.
+      -->
+      <Menu guid="guidCockpitCmdSet" id="CockpitSubMenu" priority="0x0700" type="Menu">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_EXTENSIONS" />
         <Strings>
           <ButtonText>Tootega Cockpit</ButtonText>
           <CommandName>Tootega Cockpit</CommandName>
@@ -27,10 +34,6 @@
     </Menus>
 
     <Groups>
-      <Group guid="guidCockpitCmdSet" id="CockpitSubMenuGroup" priority="0x0600">
-        <Parent guid="guidSHLMainMenu" id="IDG_VS_EXTENSIONS" />
-      </Group>
-
       <Group guid="guidCockpitCmdSet" id="GroupSession" priority="0x0100">
         <Parent guid="guidCockpitCmdSet" id="CockpitSubMenu" />
       </Group>
@@ -42,6 +45,12 @@
       </Group>
 
       <Group guid="guidCockpitCmdSet" id="ChatToolbarGroup" priority="0x0100">
+        <Parent guid="guidCockpitCmdSet" id="ChatToolbar" />
+      </Group>
+
+      <!-- A group of its own, after the actions, so the folder sits to the right of them
+           on the same row instead of being ordered among the buttons. -->
+      <Group guid="guidCockpitCmdSet" id="ChatToolbarFolderGroup" priority="0x0200">
         <Parent guid="guidCockpitCmdSet" id="ChatToolbar" />
       </Group>
 
@@ -57,6 +66,19 @@
       -->
       <Group guid="guidCockpitCmdSet" id="GroupViewWindows" priority="0x0700">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWSEXPLORERS" />
+      </Group>
+
+      <!--
+        Solution Explorer, on the solution and project nodes. A third entry point, and the
+        one that does not depend on the shell reparenting a top-level menu: opening a
+        conversation from the node you are working on is also the shortest path to the
+        folder scoping the session.
+      -->
+      <Group guid="guidCockpitCmdSet" id="GroupSolutionContext" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_SOLNNODE" />
+      </Group>
+      <Group guid="guidCockpitCmdSet" id="GroupProjectContext" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_PROJNODE" />
       </Group>
     </Groups>
 
@@ -126,6 +148,27 @@
         <Strings>
           <ButtonText>Reload Cockpit View</ButtonText>
           <CommandName>Tootega.ReloadView</CommandName>
+        </Strings>
+      </Button>
+
+      <!--
+        The conversation's folder: shown as text beside its icon, and clicking it asks for
+        another one. One control rather than a label plus a button, because a label the user
+        cannot act on would only prompt the question "where do I change this?".
+
+        TextChanges is what lets the handler rewrite the caption as the folder moves; without
+        it the shell caches the first string it was given and never asks again.
+      -->
+      <Button guid="guidCockpitCmdSet" id="cmdidFolder" priority="0x0100" type="Button">
+        <Parent guid="guidCockpitCmdSet" id="ChatToolbarFolderGroup" />
+        <Icon guid="guidCockpitImages" id="FolderIcon" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>IconAndText</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Folder</ButtonText>
+          <CommandName>Tootega.Folder</CommandName>
+          <ToolTipText>Change the folder this conversation runs in</ToolTipText>
         </Strings>
       </Button>
 
@@ -246,6 +289,19 @@
     <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpenHub" priority="0x0110">
       <Parent guid="guidCockpitCmdSet" id="GroupViewWindows" />
     </CommandPlacement>
+
+    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpen" priority="0x0100">
+      <Parent guid="guidCockpitCmdSet" id="GroupSolutionContext" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpenHub" priority="0x0110">
+      <Parent guid="guidCockpitCmdSet" id="GroupSolutionContext" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpen" priority="0x0100">
+      <Parent guid="guidCockpitCmdSet" id="GroupProjectContext" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpenHub" priority="0x0110">
+      <Parent guid="guidCockpitCmdSet" id="GroupProjectContext" />
+    </CommandPlacement>
   </CommandPlacements>
 
   <!-- Same shortcuts as the VS Code extension, so muscle memory carries over. -->
@@ -263,14 +319,16 @@
 
     <GuidSymbol name="guidCockpitCmdSet" value="{8b14bea4-9c47-451d-8143-63d452bc8422}">
       <IDSymbol name="CockpitSubMenu" value="0x1000" />
-      <IDSymbol name="CockpitSubMenuGroup" value="0x1010" />
       <IDSymbol name="GroupSession" value="0x1020" />
       <IDSymbol name="GroupAccount" value="0x1021" />
       <IDSymbol name="GroupTools" value="0x1022" />
       <IDSymbol name="ChatToolbar" value="0x1030" />
       <IDSymbol name="ChatToolbarGroup" value="0x1031" />
+      <IDSymbol name="ChatToolbarFolderGroup" value="0x1032" />
       <IDSymbol name="GroupOtherWindows" value="0x1040" />
       <IDSymbol name="GroupViewWindows" value="0x1041" />
+      <IDSymbol name="GroupSolutionContext" value="0x1042" />
+      <IDSymbol name="GroupProjectContext" value="0x1043" />
 
       <IDSymbol name="cmdidOpen" value="0x0100" />
       <IDSymbol name="cmdidNewSession" value="0x0101" />
@@ -288,6 +346,7 @@
       <IDSymbol name="cmdidEnableUtf8Fix" value="0x010D" />
       <IDSymbol name="cmdidDisableUtf8Fix" value="0x010E" />
       <IDSymbol name="cmdidOpenHub" value="0x010F" />
+      <IDSymbol name="cmdidFolder" value="0x0110" />
     </GuidSymbol>
 
     <!-- Mirror of Resources/Cockpit.imagemanifest. -->
@@ -303,6 +362,7 @@
       <IDSymbol name="ApiKeyIcon" value="1008" />
       <IDSymbol name="UsageIcon" value="1009" />
       <IDSymbol name="Utf8FixIcon" value="1010" />
+      <IDSymbol name="FolderIcon" value="1011" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

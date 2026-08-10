@@ -43,6 +43,8 @@ namespace Tootega.Cockpit
 
             AddHostCommand(menu, CockpitIds.CmdReloadView, h => h.ReloadActiveView());
 
+            AddFolderCommand(menu);
+
             AddShellCommand(menu, CockpitIds.CmdSettings, delegate
             {
                 package.ShowOptionPage(typeof(CockpitOptions));
@@ -61,6 +63,53 @@ namespace Tootega.Cockpit
             AddHostCommand(menu, CockpitIds.CmdDisableUsageTracking, h => h.DisableUsageTracking());
             AddHostCommand(menu, CockpitIds.CmdEnableUtf8Fix, h => h.EnableUtf8Fix());
             AddHostCommand(menu, CockpitIds.CmdDisableUtf8Fix, h => h.DisableUtf8Fix());
+        }
+
+        /// <summary>
+        /// The toolbar's folder control: it shows where the conversation runs and changes it.
+        ///
+        /// The caption is rewritten on every status query rather than pushed on change,
+        /// because the shell asks before it draws and there is no event for "the folder moved"
+        /// that arrives earlier than that. Only the leaf name is shown — a full path would
+        /// push the rest of the toolbar off the window — and the tooltip carries the rest.
+        /// </summary>
+        private static void AddFolderCommand(OleMenuCommandService menu)
+        {
+            var id = new CommandID(CockpitIds.CommandSet, CockpitIds.CmdFolder);
+            var command = new OleMenuCommand(delegate
+            {
+                var host = CockpitHost.Instance;
+                if (host == null) return;
+                Invoke(CockpitIds.CmdFolder, host.ChangeFolder);
+            }, id);
+
+            command.BeforeQueryStatus += delegate (object sender, EventArgs e)
+            {
+                var item = (OleMenuCommand)sender;
+                var host = CockpitHost.Instance;
+
+                item.Enabled = host != null;
+
+                var folder = host?.CurrentFolder;
+                item.Text = string.IsNullOrEmpty(folder) ? "No folder" : LeafName(folder);
+            };
+
+            menu.AddCommand(command);
+        }
+
+        /// <summary>The last segment of a path, tolerating a trailing separator and a bare root.</summary>
+        private static string LeafName(string path)
+        {
+            var trimmed = path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+            if (trimmed.Length == 0) return path;
+
+            var cut = trimmed.LastIndexOfAny(new[]
+            {
+                System.IO.Path.DirectorySeparatorChar,
+                System.IO.Path.AltDirectorySeparatorChar
+            });
+
+            return cut < 0 || cut == trimmed.Length - 1 ? trimmed : trimmed.Substring(cut + 1);
         }
 
         private static void AddShellCommand(OleMenuCommandService menu, int commandId, Action handler)

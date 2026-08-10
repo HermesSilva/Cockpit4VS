@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Resources;
 using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("Tootega Cockpit for Claude Code")]
@@ -7,5 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("Tootega Cockpit")]
 [assembly: AssemblyCopyright("Copyright (c) Tootega Pesquisa e Inovação")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.0.6.0")]
-[assembly: AssemblyFileVersion("1.0.6.0")]
+// The command table lives in this assembly's neutral resources, and the extension ships in
+// one language. Saying so spares the resource manager a probe for a satellite that will
+// never exist — the same declaration the VSSDK project template makes.
+[assembly: NeutralResourcesLanguage("en-US")]
+[assembly: AssemblyVersion("1.0.18.0")]
+[assembly: AssemblyFileVersion("1.0.18.0")]

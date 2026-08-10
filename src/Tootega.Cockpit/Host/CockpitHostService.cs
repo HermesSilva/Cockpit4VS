@@ -671,6 +671,27 @@ namespace Tootega.Cockpit.Host
 #pragma warning restore VSSDK007
         }
 
+        /// <summary>
+        /// The toolbar's folder control. It routes through the same handler as the webview's
+        /// folder chip, so a move made from either side clears and reloads the conversation
+        /// identically — two paths to one behaviour, not two behaviours.
+        /// </summary>
+        public void ChangeFolder()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            _router.SetTabCwd(_tabs.EnsureActiveTab(), null);
+            _package.RefreshConversationCaptions();
+        }
+
+        public string CurrentFolder
+        {
+            get
+            {
+                var tab = _tabs.ActiveTab;
+                return tab != null && _tabs.Has(tab) ? _tabs.Cwd(tab) : null;
+            }
+        }
+
         public void Interrupt() => _tabs.Active().Interrupt();
 
         public void OpenSessions()

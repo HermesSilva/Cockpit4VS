@@ -22,6 +22,18 @@ namespace Tootega.Cockpit
         /// <summary>Reloads the active conversation's renderer — the recovery for a dead webview.</summary>
         void ReloadActiveView();
 
+        /// <summary>
+        /// Asks for a folder and moves the active conversation to it — the same operation the
+        /// webview's folder chip performs, reachable from the tool window toolbar.
+        /// </summary>
+        void ChangeFolder();
+
+        /// <summary>
+        /// The active conversation's folder, or null when there is no conversation yet. Read
+        /// by the toolbar to show where the window is pointed.
+        /// </summary>
+        string CurrentFolder { get; }
+
         void Interrupt();
         void OpenSessions();
         void ReopenClosed();

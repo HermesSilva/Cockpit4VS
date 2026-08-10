@@ -605,7 +605,7 @@ namespace Tootega.Cockpit.Host
         /// The conversation does not survive the move, so the new folder's history is sent
         /// right after: the tab lands somewhere the user can pick up from, not empty.
         /// </summary>
-        private void SetTabCwd(string tabId, string path)
+        internal void SetTabCwd(string tabId, string path)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
 

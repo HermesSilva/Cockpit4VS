@@ -6,7 +6,7 @@
   active theme (light / dark / blue / high contrast), so a single source stays legible
   everywhere. AllowColorInversion is left at its default (true) — inversion preserves hue,
   which keeps the neutral stroke readable on dark backgrounds while the Cockpit orange
-  stays orange.
+  stays orange. The product mark is the one exception, and says so where it is declared.
 
   The GUID/ID pairs below are mirrored in CockpitPackage.vsct (as guidCockpitImages /
   the icon IDSymbols) and in CockpitMonikers.cs. All three must agree.
@@ -27,10 +27,12 @@
     <ID Name="ApiKeyIcon" Value="1008" />
     <ID Name="UsageIcon" Value="1009" />
     <ID Name="Utf8FixIcon" Value="1010" />
+    <ID Name="FolderIcon" Value="1011" />
   </Symbols>
 
   <Images>
-    <Image Guid="$(CockpitImages)" ID="$(CockpitIcon)">
+    <!-- The product mark keeps its own colours: inversion would repaint a logo. -->
+    <Image Guid="$(CockpitImages)" ID="$(CockpitIcon)" AllowColorInversion="false">
       <Source Uri="$(Resources)/Icons/Cockpit.xaml" />
     </Image>
     <Image Guid="$(CockpitImages)" ID="$(NewSessionIcon)">
@@ -62,6 +64,9 @@
     </Image>
     <Image Guid="$(CockpitImages)" ID="$(Utf8FixIcon)">
       <Source Uri="$(Resources)/Icons/Utf8Fix.xaml" />
+    </Image>
+    <Image Guid="$(CockpitImages)" ID="$(FolderIcon)">
+      <Source Uri="$(Resources)/Icons/Folder.xaml" />
     </Image>
   </Images>
 </ImageManifest>

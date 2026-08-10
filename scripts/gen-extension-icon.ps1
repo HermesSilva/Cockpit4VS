@@ -1,30 +1,25 @@
-# Renders the extension icon (Extension Manager / Marketplace tile) from the same
-# gauge geometry as the 16px command icon, so the identity is one drawing at two sizes.
+# Renders the extension icon (Extension Manager / Marketplace tile) from the very drawing
+# the 16px command icon uses, so the identity is one file at two sizes and the tile cannot
+# drift away from the mark shown inside the IDE.
 #
-# The stroke is mid-grey rather than near-black: this PNG is static, and the Extension
-# Manager shows it over both light and dark chrome.
+# The source is the product mark carried over from the VS Code extension, so the listing in
+# both stores shows the same logo.
 param(
     [int]$Size = 128,
+    [string]$Source = "$PSScriptRoot\..\src\Tootega.Cockpit\Resources\Icons\Cockpit.xaml",
     [string]$OutFile = "$PSScriptRoot\..\src\Tootega.Cockpit\Resources\CockpitExtension.png"
 )
 
+$ErrorActionPreference = 'Stop'
+
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 
-$xaml = @"
-<Viewbox xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-         Width="$Size" Height="$Size">
-  <Canvas Width="16" Height="16">
-    <Ellipse Canvas.Left="0" Canvas.Top="0" Width="16" Height="16" Fill="#00000000" />
-    <Path Stroke="#FF8A8A8A" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-          Data="M 3.757 13.243 A 6 6 0 1 1 12.243 13.243" />
-    <Path Stroke="#FFE8792B" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-          Data="M 8 9 L 10.9 5.4" />
-    <Ellipse Canvas.Left="6.85" Canvas.Top="7.85" Width="2.3" Height="2.3" Fill="#FF8A8A8A" />
-  </Canvas>
-</Viewbox>
-"@
+$element = [Windows.Markup.XamlReader]::Parse((Get-Content -LiteralPath $Source -Raw))
 
-$element = [Windows.Markup.XamlReader]::Parse($xaml)
+# The XAML is authored on the 16px grid; the Viewbox does the scaling, so the only thing
+# that changes with $Size is how much resolution the tile gets.
+$element.Width = $Size
+$element.Height = $Size
 $element.Measure([Windows.Size]::new($Size, $Size))
 $element.Arrange([Windows.Rect]::new(0, 0, $Size, $Size))
 $element.UpdateLayout()
@@ -42,4 +37,4 @@ if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null 
 $stream = [IO.File]::Create($OutFile)
 try { $encoder.Save($stream) } finally { $stream.Dispose() }
 
-Write-Output "wrote $OutFile ($Size x $Size)"
+Write-Output "wrote $OutFile ($Size x $Size) from $(Split-Path -Leaf $Source)"
