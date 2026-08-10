@@ -24,6 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Not referenced transitively on net472; the OTEL receiver tests post over real HTTP. -->
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Tootega.Cockpit\Tootega.Cockpit.csproj" />
   </ItemGroup>
 

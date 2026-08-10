@@ -94,6 +94,42 @@ namespace Tootega.Cockpit.Cli
             }
         }
 
+        /// <summary>
+        /// GET returning the status alongside the body.
+        ///
+        /// Callers that need to distinguish a transient failure from a permanent one use this:
+        /// a 429 or 5xx is worth retrying, a 401 is not, and "null body" cannot tell them
+        /// apart. Status 0 means the request never got an answer.
+        /// </summary>
+        public static async Task<(int Status, string Body, string Error)> GetWithStatusAsync(
+            string url, ApiCredentials credentials, int timeoutMs = 8000)
+        {
+            using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+            {
+                Apply(request, credentials, null);
+
+                try
+                {
+                    using (var cancellation = new System.Threading.CancellationTokenSource(timeoutMs))
+                    using (var response = await Shared.Value
+                               .SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellation.Token)
+                               .ConfigureAwait(false))
+                    {
+                        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        return ((int)response.StatusCode, body, null);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    return (0, null, "timeout (" + timeoutMs + " ms)");
+                }
+                catch (Exception ex)
+                {
+                    return (0, null, "network: " + ex.Message);
+                }
+            }
+        }
+
         /// <summary>POST of a JSON body, returning the response body or null on failure.</summary>
         public static async Task<string> PostJsonAsync(string url, string json, ApiCredentials credentials,
                                                        int timeoutMs = 20000)
