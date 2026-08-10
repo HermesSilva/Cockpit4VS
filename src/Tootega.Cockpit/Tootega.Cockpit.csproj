@@ -67,6 +67,11 @@
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.8.739" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
+    <!-- Fully managed Hunspell: reads .aff/.dic directly, with no native binaries to ship
+         per architecture. The VS Code original used a WASM build, which has no .NET analogue. -->
+    <PackageReference Include="WeCantSpell.Hunspell" Version="7.0.1" />
+    <!-- Renders the vault's enrolment QR as inline SVG, so the secret never touches disk. -->
+    <PackageReference Include="QRCoder" Version="1.8.0" />
     <!-- Compile against System.Text.Json but do not ship it: devenv.exe.config binds
          every version up to 10.0.0.4 to the copy the IDE already loads, so packaging our
          own would be dead weight at best and a split-assembly conflict at worst. -->
@@ -113,6 +118,12 @@
     </Content>
     <Content Include="LICENSE.txt">
       <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <!-- Hunspell dictionaries, with their own licences. Loaded from disk on first use
+         rather than embedded: the pt-BR pair alone is over 5 MB. -->
+    <Content Include="Dictionaries\*.*">
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
