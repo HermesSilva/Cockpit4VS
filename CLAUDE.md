@@ -59,7 +59,23 @@ background luminosity, never hardcoded for one theme.
 **Consequence:** do not fork the webview's CSS or its `vscodeApi.ts` for Visual Studio. If
 something looks wrong, fix the *bridge*. A divergence there is a divergence forever.
 
-## 4. Icons
+## 4. Substitutions the port had to make
+
+Four things had no .NET equivalent and were replaced rather than translated. Each is a
+decision, not an accident:
+
+| Original | Here | Why |
+|---|---|---|
+| `hunspell-asm` (WASM) | `WeCantSpell.Hunspell` | Fully managed, reads the same `.aff`/`.dic`, no native binary per architecture. Covered by live tests against the real dictionaries. |
+| VS Code `SecretStorage` | Windows Credential Manager (P/Invoke) | VS has no equivalent. Not DPAPI-over-a-file: the credential manager is inspectable and revocable through a normal Windows UI. |
+| `qrcode` (npm) | `QRCoder` | Inline SVG, so the enrolment secret never touches disk. |
+| `HttpListener` for OTEL | raw `TcpListener` | `HttpListener` needs a URL reservation on Windows; asking for an elevated command before a convenience feature works is the worse trade. |
+
+Two more are shape changes rather than library swaps: `shell: true` became
+`cmd.exe /s /c` (see §3), and clipboard file paths come from the WPF clipboard instead of
+a PowerShell round-trip, which also removed the original's code-page workaround.
+
+## 5. Icons
 
 Vector XAML in `Resources/Icons/`, registered in `Resources/Cockpit.imagemanifest`, exposed
 to C# through `CockpitMonikers` and to the command table through `guidCockpitImages`. The
@@ -69,7 +85,7 @@ Rules: neutral stroke `#2B2B2B` (the ImageService inverts luminosity for dark th
 orange `#E8792B` as the only chromatic element, 16px grid, ~1.3–1.5px strokes. Preview with
 `scripts/preview-icons.ps1` before committing art.
 
-## 5. Threading
+## 6. Threading
 
 In-proc VSIX code runs inside devenv. Two rules that are not negotiable:
 
@@ -82,7 +98,7 @@ In-proc VSIX code runs inside devenv. Two rules that are not negotiable:
 `Log` is the exception by design: the pane is created on the UI thread once, and writes go
 through `OutputStringThreadSafe` so CLI reader threads can log freely.
 
-## 6. Build and test
+## 7. Build and test
 
 ```powershell
 ./build.ps1                 # build + tests
@@ -106,7 +122,7 @@ in-proc bugs; suppress one only with a `#pragma` and a comment saying why.
 Do not package assemblies `devenv.exe.config` already binds (System.Text.Json and friends)
 — use `ExcludeAssets="runtime"`.
 
-## 7. Non-goals
+## 8. Non-goals
 
 Same as the base repo — plus: do not add an i18n layer, and do not port the VS Code-only
 affordances that have no Visual Studio counterpart (activity-bar container, editor-title
