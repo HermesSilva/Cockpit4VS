@@ -1,75 +1,123 @@
 # Tootega Cockpit for Claude Code
 
-A rich GUI for **Claude Code**, native to Visual Studio.
+**Claude Code, with a full interface, inside Visual Studio.**
+
+Everything the agent does already happens in the Claude Code CLI you have installed: the
+loop, the tools, the subagents, the context, the cache, the permissions, MCP, hooks and
+skills. What it does not have is a place to *see* any of it. That is what the Cockpit is —
+a presentation and control layer over the CLI, native to the IDE you already work in.
 
 > **Unofficial.** Not affiliated with, endorsed by, or sponsored by Anthropic. "Claude",
-> "Claude Code" and "Anthropic" are trademarks of Anthropic, PBC, used here only to
-> describe interoperability. This extension talks to the official Claude Code CLI; it does
-> not bundle or redistribute it.
+> "Claude Code" and "Anthropic" are trademarks of Anthropic, PBC, used here only to describe
+> interoperability. This extension talks to the official Claude Code CLI; it does not bundle
+> or redistribute it.
 
-The Cockpit is **a presentation and control layer over the Claude Code CLI**. Everything the
-agent does — the loop, tools, subagents, context, cache, compaction, permissions, MCP,
-hooks, skills — happens in the CLI you already have. The extension renders what it emits and
-gives you the controls, inside the IDE you already work in.
+---
 
-## What you get
+## A conversation you can actually follow
 
-**A conversation that reads like one.** Token-by-token streaming, thinking blocks you can
-expand, a timeline with a card per tool call, markdown with syntax highlighting and a
-line-number gutter, find-in-conversation, export to Markdown, and a scroll rail with one
-mark per prompt so a long session stays navigable. A verbosity filter changes what you see
-without changing what the agent does.
+Streaming token by token, with thinking blocks you can open when you want to know why, and
+a timeline that gives every tool call its own card — what it ran, on what, and what came
+back. Markdown is rendered with syntax highlighting and a line-number gutter, so a code
+answer reads like code.
 
-**Control where it matters.** Approve or refuse each tool call with a preview of what it
-would do. Switch permission modes, including plan mode — where you can *edit* the plan before
-approving it. Answer composed questions with tabs and multi-select. Read diffs side by side,
-in the panel or in the Visual Studio diff viewer. Mention files with `@`, and share the
-current editor selection as a chip on the composer.
+Long sessions stay navigable: a scroll rail marks each of your prompts, `Ctrl+F` searches
+the conversation, and a verbosity filter quiets the timeline without changing anything the
+agent does. When you want the transcript elsewhere, export it to Markdown.
 
-**Know what it costs.** A live context window and cache life, tokens and cost per session,
-turns and compactions, and an optional local OpenTelemetry receiver that aggregates what the
-CLI reports. No guessing about how much of the window is left.
+## Control that arrives before the damage
 
-**Write better prompts.** An inline spell-checker for English and Brazilian Portuguese that
-marks and never auto-corrects — it flags only what is wrong in *both* languages. Voice
-dictation with live partials, and optional AI clean-up of the dictated text.
+Every tool call can be approved or refused with a preview of what it would do — allow once,
+allow always, or deny. Permission modes are a dropdown, including **plan mode**, where the
+plan is *editable*: correct it, send your notes back, and approve the version you actually
+want.
 
-**Keys where keys belong.** API keys live in the Windows Credential Manager, which you can
-inspect and revoke through a normal Windows UI. Enrolment secrets are rendered as inline SVG
-QR codes, so they never touch disk.
+Diffs are shown side by side, in the panel or in the Visual Studio diff viewer. Composed
+questions from the agent come as real controls — tabs, multi-select, a free-text option.
+Mention files with `@` and fuzzy completion, and share the current editor selection as a
+chip on the composer, so the agent reads what you are looking at.
+
+## Know what it is spending
+
+A live context window with the tokens left in it, cache life with a warning before it
+expires, cost per session, turns, compactions, and cache hit rates. No guessing how much
+room is left before compaction, and no surprise at the end of the month.
+
+Optionally, a local OpenTelemetry receiver aggregates what the CLI itself reports. It
+listens on localhost only, and conversation text is pinned out of telemetry.
+
+## Written for people who write
+
+An inline spell-checker for **English and Brazilian Portuguese**, running on Hunspell in the
+host. It flags only what is wrong in *both* languages, so code identifiers and mixed-language
+prompts stay quiet — and it **marks, never auto-corrects**. Click an underlined word for
+suggestions grouped by language.
+
+Prefer to talk? **Voice dictation** with live partials, and an opt-in pass that cleans up the
+dictated text before it reaches the composer.
+
+## One conversation, one window
+
+Each conversation gets its own tool window, its own folder and its own CLI process, so two
+of them never share state. The folder is on the window's toolbar: it says where the
+conversation runs, and clicking it moves the conversation somewhere else.
+
+The **Cockpit Hub** is the other half — every saved context, the account, the plugins, MCP,
+skills and the consumption, in one place. It is one click from the title bar.
+
+## Keys where keys belong
+
+API keys go into the **Windows Credential Manager**, not into a file next to the extension:
+a store you can inspect, audit and revoke through a normal Windows UI. Enrolment secrets for
+the credential vault are rendered as inline SVG QR codes, so they never touch disk.
+
+---
 
 ## Getting started
 
-1. Install the [Claude Code CLI](https://www.anthropic.com/claude-code) and sign in once —
-   or use **Extensions > Tootega Cockpit > Sign in to Claude (CLI)**.
-2. Open the Cockpit from the title bar button, from
-   **Extensions > Tootega Cockpit > Open Cockpit**, or with `Ctrl+Alt+C`.
-3. Point the conversation at a folder using the folder button on the window's toolbar.
+1. Install the [Claude Code CLI](https://www.anthropic.com/claude-code).
+2. Sign in once — `claude` then `/login`, or
+   **Extensions ▸ Tootega Cockpit ▸ Sign in to Claude (CLI)**.
+3. Open the Cockpit: the button in the title bar, `Ctrl+Alt+C`, or
+   **Extensions ▸ Tootega Cockpit ▸ Open Cockpit**.
+4. Point it at a folder with the folder button on the window's toolbar, and start typing.
 
-Each conversation gets its own window, its own folder and its own CLI process, so two
-conversations never share state. The **Cockpit Hub** shows every saved context, the account
-and the consumption in one place.
+Settings live in **Tools ▸ Options ▸ Tootega Cockpit** — engine, session defaults,
+interface, voice and the advanced switches. They mirror the VS Code extension, so nothing
+about the agent's behaviour changes when you move between editors.
 
-Settings live in **Tools > Options > Tootega Cockpit**.
+### Shortcuts
+
+| | |
+|---|---|
+| `Ctrl+Alt+C` | Open the Cockpit |
+| `Ctrl+Alt+N` | New session |
+| `Ctrl+Alt+.` | Interrupt the agent |
 
 ## Requirements
 
-- Visual Studio 2022 (17.x) or Visual Studio 2026 (18.x), 64-bit.
-- The Claude Code CLI on your `PATH`, or its path set in the options.
-- ffmpeg, only if you want voice dictation.
+- **Visual Studio 2022 (17.x) or Visual Studio 2026 (18.x)**, 64-bit — Community,
+  Professional or Enterprise.
+- **Claude Code CLI** on your `PATH`, or its full path set in the options.
+- **ffmpeg**, only if you want voice dictation.
 
-Nothing is spawned until you open a conversation.
+Nothing is spawned until you open a conversation. Installing the extension costs a package
+load and nothing else.
 
 ## Privacy
 
 The extension talks to the Claude Code CLI on your machine, and through it to Anthropic's
-endpoints. It has no telemetry of its own and phones home to nobody. The optional OTEL
-receiver listens on localhost and aggregates only what the CLI itself reports.
+endpoints. It has **no telemetry of its own** and phones home to nobody. The optional OTEL
+receiver listens on localhost and aggregates only what the CLI reports.
+
+## Also for VS Code
+
+The same interface, from the same codebase:
+[Tootega Cockpit for VS Code](https://marketplace.visualstudio.com/items?itemName=HermesSilva.tootega-cockpit).
 
 ## Links
 
 - [Source, issues and changelog](https://github.com/HermesSilva/Cockpit4VS)
-- The same interface for VS Code:
-  [Tootega Cockpit](https://marketplace.visualstudio.com/items?itemName=HermesSilva.tootega-cockpit)
+- [Report a problem](https://github.com/HermesSilva/Cockpit4VS/issues)
 
-MIT licensed.
+MIT licensed. Made by Tootega Pesquisa e Inovação.

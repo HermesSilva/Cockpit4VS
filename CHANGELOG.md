@@ -2,10 +2,12 @@
 
 All notable changes to Tootega Cockpit for Visual Studio.
 
-Versions before 1.0.16 were internal builds produced while porting the extension from VS
-Code, and are not listed individually — nothing shipped from them.
+Versions before 1.0.18 were internal builds produced while porting the extension from VS
+Code, and are not listed individually — nothing shipped from them. `pack.cmd` bumps the
+build number on every run, so the number here is the one that was published, not the count
+of builds it took to get there.
 
-## 1.0.16 — first public release
+## 1.0.18 — first public release
 
 The Cockpit, native to Visual Studio. Same interface as the VS Code extension, same
 `stream-json` contract with the Claude Code CLI, a new host around it.
