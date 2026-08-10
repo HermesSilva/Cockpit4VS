@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="Tootega.Cockpit.a0f4d7c2-6b1e-4f8a-9c3d-2e5b7a1f0d64" Version="1.0.0" Language="en-US" Publisher="Tootega Pesquisa e Inovação" />
+    <Identity Id="Tootega.Cockpit.a0f4d7c2-6b1e-4f8a-9c3d-2e5b7a1f0d64" Version="1.0.3" Language="en-US" Publisher="Tootega Pesquisa e Inovação" />
     <DisplayName>Tootega Cockpit for Claude Code</DisplayName>
     <Description xml:space="preserve">A rich GUI for Claude Code inside Visual Studio. The interface is only a presentation and control layer over the Claude Code CLI — all orchestration (agent loop, tools, subagents, context, cache, permissions, MCP, hooks, skills) lives in the CLI. Unofficial; not affiliated with Anthropic.</Description>
     <MoreInfo>https://github.com/hermessilva/Cockpit</MoreInfo>

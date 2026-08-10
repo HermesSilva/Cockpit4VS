@@ -10,6 +10,10 @@
 *.imagemanifest text
 *.vsixmanifest  text
 *.ps1       text
+# cmd.exe mis-parses a batch file with bare LF endings: it splices lines and reports
+# nonsense like "'m' is not recognized". They have to stay CRLF on disk.
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
 *.md        text
 *.json      text
 *.html      text

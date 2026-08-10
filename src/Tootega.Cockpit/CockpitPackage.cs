@@ -19,7 +19,7 @@ namespace Tootega.Cockpit
     /// has no business slowing down VS start for users who never open it.
     /// </summary>
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
-    [InstalledProductRegistration("#110", "#112", "1.0.0")]
+    [InstalledProductRegistration("#110", "#112", CockpitIds.ProductVersion)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(CockpitIds.PackageGuidString)]
     // MultiInstances: one window per conversation, each with its own folder and process.

@@ -6,10 +6,16 @@ rem  It delegates the build to build.ps1 rather than calling MSBuild itself:
 rem  locating the VS MSBuild and vstest is already solved there, and two copies
 rem  of that logic would drift apart.
 rem
+rem  The build number is incremented BEFORE compiling, so the .vsix that lands in
+rem  Dist is never the same version as the one already installed - Visual Studio
+rem  skips an install whose version it believes it already has.
+rem
 rem  Usage:
-rem    pack.cmd                 Release, with the tests
+rem    pack.cmd                 bump, build Release, run the tests
 rem    pack.cmd /debug          Debug instead of Release
 rem    pack.cmd /skiptests      skip the test run
+rem    pack.cmd /nobump         keep the current version
+rem    pack.cmd /minor          increment the minor instead of the build
 rem ===========================================================================
 
 setlocal EnableDelayedExpansion
@@ -17,12 +23,17 @@ setlocal EnableDelayedExpansion
 set "ROOT=%~dp0"
 set "CONFIG=Release"
 set "SKIP="
+set "BUMP=1"
+set "PART=Build"
 
 :parse
 if "%~1"=="" goto parsed
 if /i "%~1"=="/debug"     ( set "CONFIG=Debug"      & shift & goto parse )
 if /i "%~1"=="/release"   ( set "CONFIG=Release"    & shift & goto parse )
 if /i "%~1"=="/skiptests" ( set "SKIP=-SkipTests"   & shift & goto parse )
+if /i "%~1"=="/nobump"    ( set "BUMP="             & shift & goto parse )
+if /i "%~1"=="/minor"     ( set "PART=Minor"        & shift & goto parse )
+if /i "%~1"=="/major"     ( set "PART=Major"        & shift & goto parse )
 if /i "%~1"=="/?"         goto usage
 echo Unknown option: %~1
 goto usage
@@ -34,6 +45,17 @@ rem runs under both, and requiring pwsh would fail on a clean machine.
 set "PS=powershell"
 where pwsh >nul 2>nul
 if not errorlevel 1 set "PS=pwsh"
+
+if defined BUMP (
+    echo.
+    echo === Bumping the version ===
+    "%PS%" -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\bump-version.ps1" -Part %PART%
+    if errorlevel 1 (
+        echo.
+        echo Could not bump the version. Nothing was built.
+        exit /b 1
+    )
+)
 
 echo.
 echo === Building %CONFIG% ===
@@ -84,7 +106,8 @@ exit /b 0
 
 :usage
 echo.
-echo   pack.cmd [/debug ^| /release] [/skiptests]
+echo   pack.cmd [/debug ^| /release] [/skiptests] [/nobump] [/minor ^| /major]
 echo.
-echo   Builds the extension and copies the .vsix into Dist\.
+echo   Increments the build number, builds the extension and copies the .vsix
+echo   into Dist\ under both a versioned and a stable name.
 exit /b 1
