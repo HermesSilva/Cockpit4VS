@@ -439,11 +439,9 @@ namespace Tootega.Cockpit.Tests
         {
             // The receiver runs on a raw socket rather than HttpListener, which needs a URL
             // reservation on Windows. Only a real request proves the framing is right.
-            var port = FreePort();
-            using (var receiver = new OtelReceiver(port))
+            using (var receiver = StartedReceiver())
             {
-                receiver.Start();
-                Assert.True(receiver.IsRunning, "the receiver did not start on port " + port);
+                Assert.True(receiver.IsRunning, "the receiver did not start on " + receiver.Endpoint);
 
                 using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) })
                 {
@@ -465,10 +463,8 @@ namespace Tootega.Cockpit.Tests
         {
             // Assistant responses can carry conversation text. Receipt is acknowledged so the
             // exporter stops retrying, but nothing is retained.
-            var port = FreePort();
-            using (var receiver = new OtelReceiver(port))
+            using (var receiver = StartedReceiver())
             {
-                receiver.Start();
                 Assert.True(receiver.IsRunning);
 
                 using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) })
@@ -484,10 +480,8 @@ namespace Tootega.Cockpit.Tests
         [Fact]
         public async Task RejectsAnythingElse()
         {
-            var port = FreePort();
-            using (var receiver = new OtelReceiver(port))
+            using (var receiver = StartedReceiver())
             {
-                receiver.Start();
                 Assert.True(receiver.IsRunning);
 
                 using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) })
@@ -501,10 +495,8 @@ namespace Tootega.Cockpit.Tests
         [Fact]
         public void StoppingRemovesTheExportedEnvironment()
         {
-            var port = FreePort();
-            using (var receiver = new OtelReceiver(port))
+            using (var receiver = StartedReceiver())
             {
-                receiver.Start();
                 Assert.Equal("1", Environment.GetEnvironmentVariable("CLAUDE_CODE_ENABLE_TELEMETRY"));
                 // Conversation text must never enter telemetry, so both are pinned off.
                 Assert.Equal("0", Environment.GetEnvironmentVariable("OTEL_LOG_USER_PROMPTS"));
@@ -523,6 +515,32 @@ namespace Tootega.Cockpit.Tests
             var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
             listener.Stop();
             return port;
+        }
+
+        /// <summary>
+        /// A started receiver on a port that was free when it got there.
+        ///
+        /// Asking the OS for a free port and then binding it are two steps, and the machine
+        /// is free to hand that port to somebody else in between — which it does, often
+        /// enough to fail a build for reasons that have nothing to do with the change being
+        /// built. Losing that race is not a defect worth reporting, so it is retried; failing
+        /// every time is, so it is not retried forever.
+        /// </summary>
+        private static OtelReceiver StartedReceiver()
+        {
+            OtelReceiver receiver = null;
+
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                receiver = new OtelReceiver(FreePort());
+                receiver.Start();
+                if (receiver.IsRunning) return receiver;
+
+                receiver.Dispose();
+            }
+
+            Assert.True(receiver != null && receiver.IsRunning, "the receiver would not start on any free port");
+            return receiver;
         }
     }
 }

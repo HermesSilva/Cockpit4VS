@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -31,7 +31,7 @@ namespace Tootega.Cockpit.UI
         /// </summary>
         private const string VirtualHost = "cockpit.invalid";
 
-        private readonly WebView2 _web;
+        private readonly VsWebView2 _web;
         private readonly string _mode;
         private bool _ready;
         private bool _disposed;
@@ -51,7 +51,7 @@ namespace Tootega.Cockpit.UI
         {
             _mode = mode ?? "chat";
             TabId = tabId;
-            _web = new WebView2 { DefaultBackgroundColor = System.Drawing.Color.Transparent };
+            _web = new VsWebView2 { DefaultBackgroundColor = System.Drawing.Color.Transparent };
             Content = _web;
             VSColorTheme.ThemeChanged += OnThemeChanged;
         }
@@ -106,6 +106,7 @@ namespace Tootega.Cockpit.UI
                     VirtualHost, assets, CoreWebView2HostResourceAccessKind.Allow);
 
                 await core.AddScriptToExecuteOnDocumentCreatedAsync(BuildShim()).ConfigureAwait(true);
+                await core.AddScriptToExecuteOnDocumentCreatedAsync(BuildScrollTrace()).ConfigureAwait(true);
 
                 core.Navigate("https://" + VirtualHost + "/index.html");
             }
@@ -183,6 +184,23 @@ namespace Tootega.Cockpit.UI
             }
         }
 
+        /// <summary>Wakes the scroll tracer up. See <see cref="BuildScrollTrace"/>.</summary>
+        private async Task StartTraceAsync()
+        {
+            if (_disposed || _web.CoreWebView2 == null) return;
+            try
+            {
+                await _web.CoreWebView2
+                    .ExecuteScriptAsync("window.__TOOTEGA_TRACE__ && window.__TOOTEGA_TRACE__();")
+                    .ConfigureAwait(true);
+                Log.Debug("scroll tracing is on for this view.");
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("scroll tracing could not be started: " + ex.Message);
+            }
+        }
+
         /// <summary>Reloads the bundle — the manual recovery for a gray/dead renderer.</summary>
         public void Reload()
         {
@@ -198,9 +216,17 @@ namespace Tootega.Cockpit.UI
 
         public void FocusWebView()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
             try
             {
                 _web.Focus();
+
+                // Focusing the WPF control is not the same as focusing the page. In
+                // composition mode the browser is a visual rather than a window, so it does
+                // not take focus by being clicked into: it has to be handed over. Without
+                // this, keys reach WPF and the page behaves as if nothing is focused.
+                _web.FocusBrowser();
             }
             catch
             {
@@ -250,6 +276,11 @@ namespace Tootega.Cockpit.UI
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 await ApplyThemeAsync();
+
+                // Read here rather than when the script was injected, so turning debug logging
+                // on and reloading the view is enough to start tracing.
+                if (Log.DebugEnabled) await StartTraceAsync();
+
                 _ready = true;
                 Ready?.Invoke(this, EventArgs.Empty);
             }).FileAndForget("tootega/cockpit/navigationCompleted");
@@ -304,6 +335,199 @@ namespace Tootega.Cockpit.UI
                 // they exist before main.js runs.
                 "  window.__TOOTEGA_VIEW__ = " + JsString(_mode) + ";" +
                 "  window.__TOOTEGA_SESSION__ = " + JsString(TabId ?? string.Empty) + ";" +
+                "})();";
+        }
+
+        /// <summary>
+        /// Reports what happens to the transcript's scroller, so the cause is read rather than
+        /// guessed.
+        ///
+        /// Two hypotheses were measured against the bare control, outside Visual Studio, and both
+        /// were wrong: <c>CoreWebView2Controller.Bounds</c> never collapses when the panel is
+        /// hidden, and MoveFocus(Programmatic) neither scrolls nor moves the focused element. So
+        /// this makes no assumption about the mechanism. It records every way an offset can be
+        /// lost and leaves the reading to the log:
+        ///
+        /// <list type="bullet">
+        /// <item>an offset assigned by script, attributed to the caller that assigned it;</item>
+        /// <item>a scroller replaced by a new element — a rebuilt subtree starts at zero, and no
+        /// scroll event is raised for it at all;</item>
+        /// <item>a scroller that measured nothing, which has no offset left to keep;</item>
+        /// <item>the focus landing inside the transcript, which the browser reveals;</item>
+        /// <item>the messages arriving from the host around the moment it happens.</item>
+        /// </list>
+        ///
+        /// Timestamps are relative to the start of tracing, because the page and the host write to
+        /// one pane and their clocks are not the same one.
+        ///
+        /// Injected by the host rather than added to the bundle — the bundle is shared with the
+        /// VS Code extension and this is a question about this host — and dormant until the host
+        /// calls <c>window.__TOOTEGA_TRACE__()</c>, which it does when debug logging is on. A
+        /// normal session installs no hooks and no observers.
+        /// </summary>
+        private static string BuildScrollTrace()
+        {
+            return
+                "(function(){" +
+                "  var vs = window.chrome && window.chrome.webview;" +
+                "  if (!vs) return;" +
+                "  var on = false;" +
+                "  var t0 = Date.now();" +
+                "  window.__TOOTEGA_TRACE__ = function () { if (on) return; on = true; t0 = Date.now(); install(); };" +
+                "  var say = function (text) {" +
+                "    try { vs.postMessage({ kind: 'trace', text: '+' + (Date.now() - t0) + 'ms  ' + text }); } catch (e) {}" +
+                "  };" +
+                "  var name = function (el) {" +
+                "    if (!el) return 'nothing';" +
+                "    if (el === document.body) return 'BODY';" +
+                "    var c = typeof el.className === 'string' && el.className ? '.' + el.className.split(/\\s+/)[0] : '';" +
+                "    return (el.tagName || '?') + c + (el.id ? '#' + el.id : '');" +
+                "  };" +
+                // Two frames of the caller, with the bundle's origin stripped: enough to tell our
+                // own code from the browser's, which is the whole question.
+                "  var where = function () {" +
+                "    var s = (new Error()).stack || '';" +
+                "    return s.split('\\n').slice(2, 4).join(' <- ').replace(/https:\\/\\/[^ )]*\\//g, '').trim();" +
+                "  };" +
+                "  var scroller = null, serial = 0;" +
+                "  var dims = function () {" +
+                "    if (!scroller) return 'no scroller in the document';" +
+                "    return 'top=' + scroller.scrollTop + ' clientH=' + scroller.clientHeight +" +
+                "      ' scrollH=' + scroller.scrollHeight + ' innerH=' + window.innerHeight;" +
+                "  };" +
+                "  var wrote = null;" +
+                "  var mark = function (what, el) {" +
+                "    if (!el || !el.classList || !el.classList.contains('scroll')) return;" +
+                "    wrote = { at: Date.now(), what: what, from: where() };" +
+                "  };" +
+                "  var blame = function () {" +
+                "    return wrote && Date.now() - wrote.at < 500" +
+                "      ? 'WRITTEN: ' + wrote.what + '  <- ' + wrote.from" +
+                "      : 'no script wrote it';" +
+                "  };" +
+                "  var install = function () {" +
+                // ---- every offset script assigns, and who assigned it ----
+                "  var d = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');" +
+                "  if (d && d.set) {" +
+                "    Object.defineProperty(Element.prototype, 'scrollTop', {" +
+                "      configurable: true, enumerable: d.enumerable, get: d.get," +
+                "      set: function (v) { mark('scrollTop = ' + v, this); d.set.call(this, v); }" +
+                "    });" +
+                "  }" +
+                "  ['scrollTo', 'scrollBy', 'scroll'].forEach(function (m) {" +
+                "    var f = Element.prototype[m];" +
+                "    if (typeof f !== 'function') return;" +
+                "    Element.prototype[m] = function () { mark(m + '()', this); return f.apply(this, arguments); };" +
+                "  });" +
+                "  var into = Element.prototype.scrollIntoView;" +
+                "  if (typeof into === 'function') {" +
+                "    Element.prototype.scrollIntoView = function () {" +
+                "      say('scrollIntoView on ' + name(this) + '  <- ' + where());" +
+                "      return into.apply(this, arguments);" +
+                "    };" +
+                "  }" +
+                // ---- the scroll events themselves, batched so a wheel is one line ----
+                "  var watch = function (el) {" +
+                "    el.__ttWatched = true;" +
+                "    var last = el.scrollTop, batch = last, count = 0, timer = 0;" +
+                "    var flush = function () {" +
+                "      if (timer) { clearTimeout(timer); timer = 0; }" +
+                "      if (count === 0) return;" +
+                "      say('scroll ' + batch + ' -> ' + el.scrollTop + ' (' + count + ' event' +" +
+                "        (count > 1 ? 's' : '') + ') | ' + dims() + ' | focused=' + name(document.activeElement) +" +
+                "        ' pageFocus=' + document.hasFocus() + ' | ' + blame());" +
+                "      count = 0; batch = el.scrollTop;" +
+                "    };" +
+                "    el.addEventListener('scroll', function () {" +
+                "      var top = el.scrollTop;" +
+                "      if (count === 0) batch = last;" +
+                "      count++;" +
+                "      var abrupt = top === 0 || Math.abs(top - last) > 150;" +
+                "      last = top;" +
+                "      if (abrupt) { flush(); return; }" +
+                "      if (!timer) timer = setTimeout(flush, 150);" +
+                "    }, true);" +
+                // A scroller that measures nothing is a scroller with no offset to keep.
+                "    if (typeof ResizeObserver !== 'undefined') {" +
+                "      var size = '';" +
+                "      var ro = new ResizeObserver(function () {" +
+                "        var now = el.clientHeight + '/' + el.scrollHeight;" +
+                "        if (now === size) return;" +
+                "        var before = size;" +
+                "        size = now;" +
+                "        if (before === '') return;" +
+                "        say('measured ' + now.replace('/', ' x ') + ' (was ' + before.replace('/', ' x ') +" +
+                "          ') | ' + dims());" +
+                "      });" +
+                "      ro.observe(el);" +
+                "      if (el.firstElementChild) ro.observe(el.firstElementChild);" +
+                "    }" +
+                "  };" +
+                // ---- the scroller's identity: a replaced element is a lost offset with no event ----
+                "  var look = function () {" +
+                "    var el = document.querySelector('.scroll');" +
+                "    if (!el) {" +
+                "      if (scroller) { say('THE SCROLLER LEFT THE DOCUMENT (#' + serial + ')'); scroller = null; }" +
+                "      return;" +
+                "    }" +
+                "    if (el === scroller) return;" +
+                "    var had = scroller !== null;" +
+                "    scroller = el;" +
+                "    serial++;" +
+                "    if (had) {" +
+                "      say('THE SCROLLER WAS REPLACED by a new element (#' + serial + '): the page rebuilt " +
+                "that subtree, so it starts at ' + el.scrollTop + ' and no scroll event is raised | ' + dims());" +
+                "    } else {" +
+                "      say('watching the scroller (#' + serial + ') | ' + dims());" +
+                "    }" +
+                "    if (!el.__ttWatched) watch(el);" +
+                "  };" +
+                // ---- focus, viewport and visibility ----
+                "  document.addEventListener('focusin', function (e) {" +
+                "    var t = e.target;" +
+                "    var inside = t && t.closest && t.closest('.scroll');" +
+                "    say('focusin ' + name(t) + (inside ? '  (INSIDE THE TRANSCRIPT)' : '') + ' | ' + dims());" +
+                "  }, true);" +
+                "  document.addEventListener('focusout', function (e) { say('focusout ' + name(e.target)); }, true);" +
+                "  window.addEventListener('focus', function () {" +
+                "    say('the page GOT focus, on ' + name(document.activeElement) + ' | ' + dims());" +
+                "  });" +
+                "  window.addEventListener('blur', function () {" +
+                "    say('the page LOST focus, on ' + name(document.activeElement) + ' | ' + dims());" +
+                "  });" +
+                "  window.addEventListener('resize', function () {" +
+                "    say('viewport resize -> ' + window.innerWidth + 'x' + window.innerHeight + ' | ' + dims());" +
+                "  });" +
+                "  document.addEventListener('visibilitychange', function () {" +
+                "    say('visibility -> ' + document.visibilityState + ' | ' + dims());" +
+                "  });" +
+                // ---- what the host is saying while all of this happens ----
+                "  var lastKind = null, kinds = 0, kindTimer = 0;" +
+                "  var flushKind = function () {" +
+                "    kindTimer = 0;" +
+                "    if (!lastKind) return;" +
+                "    say('host -> page: ' + lastKind + (kinds > 1 ? ' x' + kinds : ''));" +
+                "    lastKind = null; kinds = 0;" +
+                "  };" +
+                "  window.addEventListener('message', function (e) {" +
+                "    var k = e.data && e.data.kind;" +
+                "    if (!k || k === 'trace') return;" +
+                "    if (k === lastKind) { kinds++; } else { flushKind(); lastKind = k; kinds = 1; }" +
+                "    if (!kindTimer) kindTimer = setTimeout(flushKind, 250);" +
+                "  });" +
+                "  var start = function () {" +
+                "    if (typeof MutationObserver !== 'undefined') {" +
+                "      new MutationObserver(look).observe(document.body, { childList: true, subtree: true });" +
+                "    }" +
+                "    look();" +
+                "    say('tracing started | ' + dims());" +
+                "  };" +
+                "  if (document.readyState === 'loading') {" +
+                "    document.addEventListener('DOMContentLoaded', start);" +
+                "  } else {" +
+                "    start();" +
+                "  }" +
+                "  };" +
                 "})();";
         }
 

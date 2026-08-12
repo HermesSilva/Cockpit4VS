@@ -39,6 +39,13 @@ international English. Do not reintroduce an i18n abstraction "for later".
 
 Source code, comments and commit messages are English, as in the base repo.
 
+**The rule is about our interface, not about what the agent says.** The questions the CLI
+asks (`AskUserQuestion`) are content, and they follow the language the user is writing in —
+`CliArguments.AskLanguagePrompt` injects that rule, and an empty *Voice > Dictation and
+question language* means "follow the conversation" rather than "English". Reading English-only
+as "force `en` on the agent" is a mistake this repo has already made once: it produced English
+questions for someone typing Portuguese.
+
 ## 3. The two bridges
 
 Almost all of the conversion's leverage comes from two adapters that let the *unmodified*

@@ -23,14 +23,6 @@
           <CommandName>Tootega Cockpit</CommandName>
         </Strings>
       </Menu>
-
-      <!-- Toolbar of the chat tool window: the actions you reach for mid-turn. -->
-      <Menu guid="guidCockpitCmdSet" id="ChatToolbar" type="ToolWindowToolbar">
-        <CommandFlag>DefaultDocked</CommandFlag>
-        <Strings>
-          <ButtonText>Cockpit</ButtonText>
-        </Strings>
-      </Menu>
     </Menus>
 
     <Groups>
@@ -42,16 +34,6 @@
       </Group>
       <Group guid="guidCockpitCmdSet" id="GroupTools" priority="0x0300">
         <Parent guid="guidCockpitCmdSet" id="CockpitSubMenu" />
-      </Group>
-
-      <Group guid="guidCockpitCmdSet" id="ChatToolbarGroup" priority="0x0100">
-        <Parent guid="guidCockpitCmdSet" id="ChatToolbar" />
-      </Group>
-
-      <!-- A group of its own, after the actions, so the folder sits to the right of them
-           on the same row instead of being ordered among the buttons. -->
-      <Group guid="guidCockpitCmdSet" id="ChatToolbarFolderGroup" priority="0x0200">
-        <Parent guid="guidCockpitCmdSet" id="ChatToolbar" />
       </Group>
 
       <!-- View > Other Windows, where VS users expect tool windows to live. -->
@@ -151,27 +133,6 @@
         </Strings>
       </Button>
 
-      <!--
-        The conversation's folder: shown as text beside its icon, and clicking it asks for
-        another one. One control rather than a label plus a button, because a label the user
-        cannot act on would only prompt the question "where do I change this?".
-
-        TextChanges is what lets the handler rewrite the caption as the folder moves; without
-        it the shell caches the first string it was given and never asks again.
-      -->
-      <Button guid="guidCockpitCmdSet" id="cmdidFolder" priority="0x0100" type="Button">
-        <Parent guid="guidCockpitCmdSet" id="ChatToolbarFolderGroup" />
-        <Icon guid="guidCockpitImages" id="FolderIcon" />
-        <CommandFlag>IconIsMoniker</CommandFlag>
-        <CommandFlag>IconAndText</CommandFlag>
-        <CommandFlag>TextChanges</CommandFlag>
-        <Strings>
-          <ButtonText>Folder</ButtonText>
-          <CommandName>Tootega.Folder</CommandName>
-          <ToolTipText>Change the folder this conversation runs in</ToolTipText>
-        </Strings>
-      </Button>
-
       <Button guid="guidCockpitCmdSet" id="cmdidLogin" priority="0x0100" type="Button">
         <Parent guid="guidCockpitCmdSet" id="GroupAccount" />
         <Icon guid="guidCockpitImages" id="AccountIcon" />
@@ -257,25 +218,9 @@
 
   </Commands>
 
-  <!-- The toolbar and View > Other Windows reuse the same buttons; placement is what
-       differs, so they are declared once above and re-parented here. -->
+  <!-- The menus reuse the same buttons; placement is what differs, so they are declared once
+       above and re-parented here. -->
   <CommandPlacements>
-    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidNewSession" priority="0x0100">
-      <Parent guid="guidCockpitCmdSet" id="ChatToolbarGroup" />
-    </CommandPlacement>
-    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidInterrupt" priority="0x0110">
-      <Parent guid="guidCockpitCmdSet" id="ChatToolbarGroup" />
-    </CommandPlacement>
-    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpenSessions" priority="0x0120">
-      <Parent guid="guidCockpitCmdSet" id="ChatToolbarGroup" />
-    </CommandPlacement>
-    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidReloadView" priority="0x0130">
-      <Parent guid="guidCockpitCmdSet" id="ChatToolbarGroup" />
-    </CommandPlacement>
-    <CommandPlacement guid="guidCockpitCmdSet" id="cmdidSettings" priority="0x0140">
-      <Parent guid="guidCockpitCmdSet" id="ChatToolbarGroup" />
-    </CommandPlacement>
-
     <CommandPlacement guid="guidCockpitCmdSet" id="cmdidOpen" priority="0x0100">
       <Parent guid="guidCockpitCmdSet" id="GroupOtherWindows" />
     </CommandPlacement>
@@ -322,9 +267,6 @@
       <IDSymbol name="GroupSession" value="0x1020" />
       <IDSymbol name="GroupAccount" value="0x1021" />
       <IDSymbol name="GroupTools" value="0x1022" />
-      <IDSymbol name="ChatToolbar" value="0x1030" />
-      <IDSymbol name="ChatToolbarGroup" value="0x1031" />
-      <IDSymbol name="ChatToolbarFolderGroup" value="0x1032" />
       <IDSymbol name="GroupOtherWindows" value="0x1040" />
       <IDSymbol name="GroupViewWindows" value="0x1041" />
       <IDSymbol name="GroupSolutionContext" value="0x1042" />
@@ -346,7 +288,6 @@
       <IDSymbol name="cmdidEnableUtf8Fix" value="0x010D" />
       <IDSymbol name="cmdidDisableUtf8Fix" value="0x010E" />
       <IDSymbol name="cmdidOpenHub" value="0x010F" />
-      <IDSymbol name="cmdidFolder" value="0x0110" />
     </GuidSymbol>
 
     <!-- Mirror of Resources/Cockpit.imagemanifest. -->
@@ -362,7 +303,6 @@
       <IDSymbol name="ApiKeyIcon" value="1008" />
       <IDSymbol name="UsageIcon" value="1009" />
       <IDSymbol name="Utf8FixIcon" value="1010" />
-      <IDSymbol name="FolderIcon" value="1011" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

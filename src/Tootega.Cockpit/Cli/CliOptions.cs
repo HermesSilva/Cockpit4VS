@@ -28,8 +28,10 @@ namespace Tootega.Cockpit.Cli
         public string ResumeSessionId { get; set; }
 
         /// <summary>
-        /// Short language code (pt, en…) for AskUserQuestion. When set it injects an
-        /// appended system prompt that forces the language of the QUESTIONS only.
+        /// Short language code (pt, en…) forcing the language of the QUESTIONS only.
+        ///
+        /// Empty is the normal case and is not "no rule": it means the questions follow the
+        /// language of the conversation. Either way an appended system prompt is injected.
         /// </summary>
         public string AskLanguage { get; set; }
 

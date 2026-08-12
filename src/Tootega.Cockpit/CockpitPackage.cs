@@ -27,7 +27,13 @@ namespace Tootega.Cockpit
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(CockpitIds.PackageGuidString)]
     // MultiInstances: one window per conversation, each with its own folder and process.
-    [ProvideToolWindow(typeof(ChatToolWindow), MultiInstances = true, Style = VsDockStyle.Tabbed, Window = EnvDTE.Constants.vsWindowKindMainWindow, Orientation = ToolWindowOrientation.Right)]
+    //
+    // Docked into the document well rather than a side panel: a conversation is a place you
+    // work, not a palette you glance at, and the transcript, the diffs and the composer all
+    // need the width. It opens as a tab beside the source files, over the whole editor area.
+    // Visual Studio remembers where the user moves it afterwards, which is as it should be —
+    // this decides where it starts, not where it has to stay.
+    [ProvideToolWindow(typeof(ChatToolWindow), MultiInstances = true, Style = VsDockStyle.Tabbed, Window = "DocumentWell", Orientation = ToolWindowOrientation.Right)]
     [ProvideToolWindow(typeof(HubToolWindow), Style = VsDockStyle.Tabbed, Window = EnvDTE.Constants.vsWindowKindSolutionExplorer, Orientation = ToolWindowOrientation.Right)]
     [ProvideOptionPage(typeof(CockpitOptions), "Tootega Cockpit", "General", 0, 0, true)]
     [ProvideProfile(typeof(CockpitOptions), "Tootega Cockpit", "General", 0, 0, true)]
@@ -192,6 +198,7 @@ namespace Tootega.Cockpit
             }
 
             var frame = (Microsoft.VisualStudio.Shell.Interop.IVsWindowFrame)window.Frame;
+            Log.Debug("window: showing the " + what + " window and handing it the focus.");
             Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(frame.Show());
             window.View?.FocusWebView();
             return window;

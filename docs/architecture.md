@@ -113,6 +113,33 @@ the output pane.
 It is a user option (`Interface > Title bar button`), on by default, and applying the
 option adds or removes the button without a restart.
 
+## The browser control
+
+`UI/VsWebView2.cs` is the WebView2 the tool windows host, and it differs from the stock one
+in two ways that the IDE forces.
+
+**Composition rather than a child window.** The ordinary WPF `WebView2` is an `HwndHost`,
+and a child window always paints above WPF whatever the z-order says. In an IDE whose
+panels slide over the editor that is not cosmetic: an unpinned Output or Error List came out
+*underneath* the conversation. `WebView2CompositionControl` renders the page into a WPF
+visual, so the shell's own surfaces overlap it like anything else.
+
+**Keyboard.** A hosted browser is otherwise a keyboard black hole — the content takes every
+key, so F5 did not start the debugger and Ctrl+Shift+B did not build. Every keystroke is
+offered to the shell first through `IVsFilterKeys2`, which resolves it against the user's
+own bindings and the active context, and only what the shell does not claim continues into
+the page. Two hooks, because which one a key takes is not ours to decide: the browser's
+`AcceleratorKeyPressed` (where F5 surfaces) and `PreviewKeyDown` (where the control feeds
+keys back as WPF input).
+
+The routing policy is deliberately narrow. A bare key is only offered when it cannot be
+text — the function keys. Ctrl and Alt combinations are offered except the ones the composer
+implements, and the caret keys (Home, End, PageUp, PageDown) are never offered at all: the
+IDE has nothing worth binding to them inside a text box, and a caret that stops moving is
+felt on every line. Modifiers are read from the keyboard with `GetKeyState` rather than from
+`Keyboard.Modifiers`, because WPF's view of a keyboard being typed into another process can
+be stale — and a stale Alt turns every keystroke into a candidate command.
+
 ## Threading
 
 In-proc VSIX code runs inside devenv. Two rules that are not negotiable:
@@ -139,7 +166,7 @@ Two deliberate exceptions, both documented where they live:
 ```
 src/Tootega.Cockpit/
   CockpitPackage.cs        AsyncPackage: registration, tool windows, options
-  CockpitPackage.vsct      command table (menus, groups, toolbar, key bindings)
+  CockpitPackage.vsct      command table (menus, groups, key bindings)
   CockpitCommands.cs       binds every .vsct entry to its handler
   CockpitIds.cs            guids, command ids, product version
   Cli/                     spawning and talking to the Claude Code CLI

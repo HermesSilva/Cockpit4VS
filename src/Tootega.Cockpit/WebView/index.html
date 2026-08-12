@@ -22,7 +22,19 @@
   <style id="vs-theme"></style>
   <link rel="stylesheet" href="main.css" />
 </head>
-<body>
+<!--
+  spellcheck is off for the whole document, and inherited by every field in it.
+
+  WebView2 leaves Chromium's own spell-checker on, which VS Code's webview host does not,
+  and it checks against the display language alone: a prompt written in Portuguese comes
+  back with almost every word underlined. The Cockpit brings its own checker — it marks a
+  word only when BOTH dictionaries reject it, and never corrects on its own — so the
+  browser's is not a second opinion, it is noise on top of the right answer.
+
+  It is set here, on the host page, rather than on the React components: those are shared
+  with the VS Code extension, and this is a difference between the two hosts.
+-->
+<body spellcheck="false">
   <div id="root"></div>
   <script src="main.js"></script>
 </body>

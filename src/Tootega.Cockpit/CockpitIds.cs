@@ -16,7 +16,7 @@ namespace Tootega.Cockpit
         /// rewritten by scripts/bump-version.ps1 together with the VSIX manifest and the
         /// assembly attributes — three statements of the same fact, which must never disagree.
         /// </summary>
-        public const string ProductVersion = "1.0.18";
+        public const string ProductVersion = "1.0.42";
 
         public const string PackageGuidString = "92c17b2d-a9a9-460d-a1e2-d48f8f21e29f";
         public const string CommandSetGuidString = "8b14bea4-9c47-451d-8143-63d452bc8422";
@@ -43,6 +43,5 @@ namespace Tootega.Cockpit
         public const int CmdEnableUtf8Fix = 0x010D;
         public const int CmdDisableUtf8Fix = 0x010E;
         public const int CmdOpenHub = 0x010F;
-        public const int CmdFolder = 0x0110;
     }
 }

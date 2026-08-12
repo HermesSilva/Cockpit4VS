@@ -3997,10 +3997,21 @@ body {
   height: 1px;
   background: var(--vscode-panel-border, rgba(127, 127, 127, 0.22));
 }
+/* The body scrolls as one document.
+
+   It used to be pinned (overflow: hidden) with the context grid as the only scrolling
+   point, which holds while the panel is tall: the stats, the controls and the grid header
+   all fit above the list. In a Visual Studio tool window they do not — the panel is a
+   column a few hundred pixels tall — and everything below the fold became unreachable,
+   with nothing to scroll because the one scroller was itself off-screen.
+
+   Letting the whole body scroll costs nothing where it already fit: a container that does
+   not overflow shows no scrollbar. */
 .ctx-panel-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden; /* only the context grid scrolls; the rest stays put */
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -4118,11 +4129,12 @@ body {
   background: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
 }
-/* The scrollable container of the time groups — the one scrolling point. */
+/* The time groups grow with their content and let the body above do the scrolling.
+   Two nested scrollers in a panel this narrow is how a user ends up dragging one bar and
+   watching the other one not move. */
 .ctx-groups {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow-y: auto;
   padding-right: 2px;
 }
 .ctx-group + .ctx-group {

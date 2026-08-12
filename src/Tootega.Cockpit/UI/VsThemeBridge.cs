@@ -49,7 +49,20 @@ namespace Tootega.Cockpit.UI
             Var(sb, "vscode-widget-border", border);
             Var(sb, "vscode-editorWidget-border", border);
             Var(sb, "vscode-menu-border", border);
-            Var(sb, "vscode-focusBorder", Themed(EnvironmentColors.ToolWindowBorderColorKey, border));
+
+            // Focus is an accent, not a border. Mapping it to the tool window's border gave a
+            // dim grey, and the webview reads this token for things that have to stand out on
+            // their own — focus rings, and the fill of the "working" gauge, which came out
+            // washed out against the track in every theme.
+            //
+            // The system highlight is the one accent every theme defines, high contrast
+            // included, and it is the colour the rest of the IDE already uses to say "this
+            // one". Falling back to the VS accent before any literal keeps a theme that
+            // somehow lacks it from landing on a hardcoded blue.
+            var focus = Themed(EnvironmentColors.SystemHighlightColorKey,
+                               EnvironmentColors.AccentMediumColorKey,
+                               Color.FromArgb(55, 148, 255));
+            Var(sb, "vscode-focusBorder", focus);
 
             // --- Buttons ---
             Var(sb, "vscode-button-background", Themed(CommonControlsColors.ButtonDefaultColorKey, Accent));

@@ -108,6 +108,13 @@ namespace Tootega.Cockpit.Protocol
         public const string Init = "init";
         public const string Heartbeat = "heartbeat";
 
+        /// <summary>
+        /// A diagnostic line from the page, written to the output pane. Sent only by the
+        /// host's own injected tracers (see <c>CockpitWebView.BuildScrollTrace</c>), never by
+        /// the bundle, and only when debug logging is on.
+        /// </summary>
+        public const string Trace = "trace";
+
         // Conversation
         public const string SendMessage = "sendMessage";
         public const string Interrupt = "interrupt";

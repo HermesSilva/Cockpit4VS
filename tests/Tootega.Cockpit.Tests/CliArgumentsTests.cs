@@ -132,9 +132,28 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
-        public void AppendedPromptIsNullWhenNeitherIsSet()
+        public void WithoutALanguageTheQuestionsFollowTheConversation()
         {
-            Assert.Null(CliArguments.AppendedSystemPrompt(Claude()));
+            // The port has no locale to name, and the machine's is no guide: it can report an
+            // English interface while the prompts being typed are Portuguese. So the default is
+            // not "no rule" — it is the rule the base extension's document export uses.
+            var appended = CliArguments.AppendedSystemPrompt(Claude());
+
+            Assert.Contains("AskUserQuestion", appended);
+            Assert.Contains("SAME language the user writes their prompts in", appended);
+            Assert.DoesNotContain("international English", appended);
+        }
+
+        [Fact]
+        public void ANamedLanguageWinsOverTheConversation()
+        {
+            var options = Claude();
+            options.AskLanguage = "pt";
+
+            var appended = CliArguments.AppendedSystemPrompt(options);
+
+            Assert.Contains("Brazilian Portuguese", appended);
+            Assert.DoesNotContain("predominates in the conversation", appended);
         }
 
         [Fact]

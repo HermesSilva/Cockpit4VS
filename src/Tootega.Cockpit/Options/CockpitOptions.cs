@@ -45,20 +45,24 @@ namespace Tootega.Cockpit.Options
         [Description("Which binary backs new sessions: claude or tootega. Ignored while the Tootega engine is disabled.")]
         public string Engine { get; set; } = "claude";
 
+        // What a new conversation starts as. The three below are the working configuration
+        // rather than the CLI's own defaults: the largest window, reasoning turned up, and
+        // permissions out of the way. A user who wants the CLI to decide sets "default" here
+        // and the flag stops being passed at all.
         [Category(CatSession)]
         [DisplayName("Model")]
-        [Description("Default model for new sessions. 'default' passes no --model flag and lets the CLI decide.")]
-        public string Model { get; set; } = "default";
+        [Description("Default model for new sessions. 'default' passes no --model flag and lets the CLI decide. The [1m] suffix asks for the 1M context window.")]
+        public string Model { get; set; } = "claude-opus-5[1m]";
 
         [Category(CatSession)]
         [DisplayName("Effort")]
         [Description("Default reasoning effort: default, low, medium, high, xhigh or max. 'default' uses effortLevel from ~/.claude/settings.json.")]
-        public string Effort { get; set; } = "default";
+        public string Effort { get; set; } = "high";
 
         [Category(CatSession)]
         [DisplayName("Permission mode")]
         [Description("Permission mode forwarded to the CLI: default, plan, acceptEdits, auto, dontAsk or bypassPermissions.")]
-        public string PermissionMode { get; set; } = "default";
+        public string PermissionMode { get; set; } = "bypassPermissions";
 
         [Category(CatSession)]
         [DisplayName("Allow agents")]
@@ -116,8 +120,9 @@ namespace Tootega.Cockpit.Options
         public bool VoiceCorrect { get; set; } = false;
 
         [Category(CatVoice)]
-        [DisplayName("Dictation language")]
-        [Description("Language code for dictation (pt, en, es, ...). Empty follows the UI language.")]
+        [DisplayName("Dictation and question language")]
+        [Description("Language code (pt, en, es, ...) for dictation and for the questions the agent asks. " +
+                     "Empty dictates in English and lets the questions follow the language of the conversation.")]
         public string VoiceLanguage { get; set; } = string.Empty;
 
         [Category(CatAdvanced)]

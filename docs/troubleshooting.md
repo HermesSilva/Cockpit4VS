@@ -33,12 +33,28 @@ that registers it, and whether that `pkgdef` reached the IDE's private registry.
 **3. Did the shell merge the command table?**
 
 ```powershell
+./scripts/probe-ctm.ps1          # the IDE may be closed
 ./scripts/probe-commands.ps1     # with the IDE running
 ./scripts/probe-menus.ps1
 ```
 
-The first lists the commands the IDE knows that came from a Tootega extension; the second
-lists what is actually drawn on the Extensions and View menus.
+`probe-ctm.ps1` is the one to run first, and the only one that answers the question that
+matters, because the two possible causes want opposite fixes. `devenv.CTM` is the merged
+command table the shell draws from: a count above zero for `guidCockpitCmdSet` means the
+contribution reached the merge and is simply not being drawn — read the section on VS 2026
+below. A count of zero means it never reached the merge at all, and the target is the install
+and its pkgdef, not the placement.
+
+Run it while the extension is installed. After an uninstall the table is rebuilt without it,
+so zero is what it should say and it proves nothing.
+
+The other two need the IDE running: the first lists the commands it knows that came from a
+Tootega extension, the second lists what is actually drawn on the Extensions and View menus.
+
+**A placement that looks right can still be wrong**, and comparing against an extension whose
+menu does appear is what shows it. Decompiling both command tables is how the submenu's parent
+was found to be the problem once already: it hung from the `IDG_VS_EXTENSIONS` group, while
+the extensions that do get drawn parent straight to `IDM_VS_MENU_EXTENSIONS`.
 
 **4. Force the merge.**
 
@@ -76,6 +92,35 @@ the menus stay missing for every extension, it is worth reporting to the Develop
 with an unrelated extension as the control case.
 
 ---
+
+## It installed, and Visual Studio has never heard of it
+
+The installer reported success, the extension folder is under
+`%LOCALAPPDATA%\Microsoft\VisualStudio\<hive>\Extensions\`, and yet nothing works and
+**Manage Extensions does not list it**.
+
+The installer's job ends at leaving a marker — `extensions.configurationchanged`, beside the
+extension folders — for the shell to act on at its next start. On some Visual Studio 2026
+installations that never happens: the marker stays where it was written, the pkgdef is never
+imported, and the IDE goes on as if nothing had been installed.
+
+Confirm it in one look: if that file is still there after the IDE has started and closed
+again, it was not consumed.
+
+```powershell
+Get-Item "$env:LOCALAPPDATA\Microsoft\VisualStudio\18.0_*\Extensions\extensions.configurationchanged"
+```
+
+Applying it by hand takes a few seconds, with the IDE closed:
+
+```powershell
+devenv /updateconfiguration
+```
+
+`scripts/reinstall.ps1` does this as its last step, so a local build never lands in this
+state. The installer's own log — `%TEMP%\dd_VSIXInstaller_*.log`, newest first — is where to
+confirm the install itself was clean; look for "has been committed to the
+'PerUserEnabledExtensionsCache' cache".
 
 ## The package does not load
 
@@ -122,6 +167,61 @@ The webview loaded nothing. In order:
 2. Check the output pane for `WebView assets missing` — a build that shipped no bundle.
 3. If it persists, the WebView2 profile may be corrupt. Close Visual Studio and delete
    `%LOCALAPPDATA%\Tootega\Cockpit\WebView2`; it is a cache and is rebuilt on next open.
+
+## The conversation jumps back to its beginning when the panel gets the focus
+
+Fixed in `VsWebView2`, by intercepting `IKeyboardInputSink.TabInto`.
+
+WPF hands the focus to a hosted sink by calling `TabInto`, and the shell does that every time it
+activates the tool window. The control answers it with
+`MoveFocus(CoreWebView2MoveFocusReason.Next)` — "focus the next element in the page" — and from
+outside, the next element is the *first tabbable one in the document*. In a conversation that is
+a button in the topmost message, so the browser scrolls the transcript up to reveal it, and
+takes the focus off the composer on the way.
+
+Measured against the bare control in a WPF host of its own, with the scroller at 1200:
+
+| call | offset after | focused after |
+|---|---|---|
+| `MoveFocus(Programmatic)` | 1200 | unchanged |
+| `MoveFocus(Next)` | **0** | first button |
+| `TabInto(First)` | **0** | first button |
+| `TabInto(First)`, intercepted | 1200 | unchanged |
+
+So the focus now arrives through `Programmatic`, which picks no element and moves nothing.
+Tabbing *within* the page is the browser's own and is untouched; the way out
+(`MoveFocusRequested`) still belongs to the control.
+
+Two other causes were proposed and killed by the same measurements — do not bring them back:
+`CoreWebView2Controller.Bounds` does **not** collapse when the panel is hidden (it survived a
+tab switch, a `Visibility.Collapsed` and a window minimise without a single `SizeChanged`), and
+`MoveFocus(Programmatic)` scrolls nothing.
+
+`CockpitWebView.BuildScrollTrace()` is the instrument that settled it, and is still there for
+the next question of this kind. Turn on **Tools > Options > Tootega Cockpit > Advanced > Debug
+logging**, then **Extensions > Tootega Cockpit > Reload Cockpit View**, and the output pane gets
+a line for each way an offset can be lost: an assignment with the caller that made it, a
+scroller replaced or removed, a measurement that changed, the focus landing inside the
+transcript, and the host messages arriving around it. Timestamps are relative to the start of
+tracing, because the page and the host do not share a clock.
+
+Do not "fix" a scroll problem by reading the offset and writing it back. That makes the host a
+second author of the scroll position, racing the user's own wheel.
+
+## Editing keys do not work in the composer
+
+Fixed. `WebView2Base` answers the browser's accelerator notification by manufacturing a WPF
+`KeyEventArgs` and raising it on the control as `PreviewKeyDown`, which tunnels from the root
+of the WPF tree downwards; the composition control then re-raises it as `KeyDown`, which
+bubbles back up. Whatever anything on either route makes of the key is returned to the browser
+as `Handled` — and a handled key never reaches the page. Home, End, Page Up/Down, the arrows,
+Tab and Delete all travel that way, because keys with no typed representation always raise the
+notification, so each was being offered to a tree of WPF controls with no business with a
+caret in a text box.
+
+`VsWebView2.StopWpfReplay` removes that replay. The IDE's claim on a keystroke is unaffected:
+it is made deliberately in `OnAcceleratorKeyPressed`, through the shell's own key-binding
+resolution, for the keys that are the IDE's business and no others.
 
 ## The colours are wrong after changing theme
 

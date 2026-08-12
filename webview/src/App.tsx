@@ -77,6 +77,13 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
   const [showSearch, setShowSearch] = useState(false);
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   const atBottomRef = useRef(true); // live state for the auto-scroll (no stale closure)
+  const lastScrollRef = useRef(0); // where the reading position is, to put it back when it is lost
+  const writtenRef = useRef(-1); // the last offset this code wrote, to tell our moves from theirs
+  const lastEventRef = useRef(0); // when the previous scroll event arrived
+  // Bumped when a transcript is loaded whole — resuming a saved context, or a replay after
+  // the renderer was reloaded. It is what tells the scroll effect that this is not new
+  // content arriving but a different conversation appearing.
+  const [historyTick, setHistoryTick] = useState(0);
   // `t` is a plain module function here: English-only, so there is nothing to memoize
   // against and no locale to react to.
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -103,9 +110,42 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
+
+    // A hidden window measures zero, and the browser answers every question about a
+    // zero-height scroller with zero. Reading that would record "scrolled to the top, not
+    // at the bottom" for a conversation the user never touched.
+    if (el.clientHeight === 0) return;
+
+    // The echo of an offset this code wrote is not a reading of where the user is.
+    if (el.scrollTop === writtenRef.current) return;
+
+    const now = Date.now();
+    const quiet = now - lastEventRef.current > 150;
+    const from = lastScrollRef.current;
+    lastEventRef.current = now;
+
+    // Scrolling is continuous: a wheel, a drag on the bar, a smooth scroll to a marker all
+    // arrive as a stream of small steps. An offset that lands on the very top in one
+    // isolated jump, from far down, was scrolled by nobody — it is a container that was
+    // relaid out and clamped, which is what the transcript does when focus moves into the
+    // composer. That one case is put back; every real scroll passes straight through.
+    if (el.scrollTop === 0 && from > 400 && quiet) {
+      pinTo(el, from);
+      return;
+    }
+
+    lastScrollRef.current = el.scrollTop;
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
     atBottomRef.current = bottom;
     setAtBottom(bottom);
+  };
+
+  // Offsets this code writes are remembered as both the position to hold and the last thing
+  // written, so its own moves are never mistaken for the user's.
+  const pinTo = (el: HTMLDivElement, top: number) => {
+    el.scrollTop = top;
+    writtenRef.current = el.scrollTop;
+    lastScrollRef.current = el.scrollTop;
   };
   const scrollToBottom = () => {
     const el = scrollRef.current;
@@ -115,6 +155,16 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       const data = e.data as HostToWebview;
+      if (data?.kind === 'history') setHistoryTick((n) => n + 1);
+
+      // The Hub is a window onto conversations it does not host. A context created in
+      // another window, or a turn that just finished writing its transcript, changes the
+      // saved list — and neither is visible from the Hub's own state, so it asks. The host
+      // answers with the list for the active conversation's folder, which is the folder the
+      // Hub is showing.
+      if (view === 'hub' && (data?.kind === 'tabs' || data?.kind === 'sessionInit' || data?.kind === 'turnComplete')) {
+        send({ kind: 'listSessions' });
+      }
       if (data?.kind === 'taskTimings') seedTaskTimings(data.timings); // host averages for the gauge
       if (data?.kind === 'usageData') setUsage(data.data); // answer to the Usage button (hot data)
       if (data?.kind === 'effortGate') setConfirmEffort({ selected: data.selected, min: data.min });
@@ -170,16 +220,109 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
   // New content: it only pins to the bottom when the user WAS already at the bottom (respects manual scroll).
   useEffect(() => {
     const el = scrollRef.current;
-    if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
+    if (el && atBottomRef.current) pinTo(el, el.scrollHeight);
   }, [items]);
+
+  // Putting the reading position back when it is lost.
+  //
+  // It is lost when there is nothing left to hold it: a scroller laid out with no height,
+  // or a transcript that measures nothing. Hiding the tab does the first, a render that
+  // empties the timeline for one frame does the second, and either way the browser has
+  // clamped to the top before the content is back.
+  //
+  // So the restore is armed by one thing only — the scroller becoming measurable again
+  // after it was not — and it never argues with the user: the first offset that is not the
+  // one it wrote ends it, and it gives up after a moment in any case.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const measurable = () => el.clientHeight > 0 && el.scrollHeight > el.clientHeight;
+    let was = measurable();
+    let raf = 0;
+    let deadline = 0;
+    let target = 0;
+    let toBottom = false;
+
+    const step = () => {
+      raf = 0;
+      if (Date.now() > deadline) return;
+      if (el.scrollTop !== writtenRef.current) return; // somebody else moved it: it is theirs now
+
+      // Repeated for a moment rather than done once: the transcript keeps growing after it
+      // appears — code blocks highlight, images decode, tool cards measure themselves — and
+      // an offset written on the first frame is already short by the third.
+      if (measurable()) pinTo(el, toBottom ? el.scrollHeight : target);
+      raf = requestAnimationFrame(step);
+    };
+
+    const begin = () => {
+      toBottom = atBottomRef.current;
+      target = lastScrollRef.current;
+      // The top is a position like any other: if that is where they were, there is nothing
+      // to put back.
+      if (!toBottom && target <= 0) return;
+      deadline = Date.now() + 700;
+      writtenRef.current = el.scrollTop; // the starting point, so the first frame is not read as theirs
+      if (!raf) raf = requestAnimationFrame(step);
+    };
+
+    // The content is watched alongside the scroller, because either of the two can be the
+    // one that measures nothing.
+    const observer =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            const now = measurable();
+            if (now && !was) begin();
+            was = now;
+          });
+    observer?.observe(el);
+    if (el.firstElementChild) observer?.observe(el.firstElementChild);
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      observer?.disconnect();
+    };
+  }, [view]);
 
   // Tab switch: goes to the bottom and resets the "at bottom" state.
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) pinTo(el, el.scrollHeight);
     atBottomRef.current = true;
     setAtBottom(true);
   }, [state.activeTab]);
+
+  // A transcript loaded whole — opening a saved context — opens at its end, which is where
+  // the conversation actually is. Unconditional: the "was the user at the bottom" rule
+  // belongs to new content arriving in the conversation being read, and this is a different
+  // conversation, so the previous scroll position says nothing about this one.
+  //
+  // Repeated for a moment rather than done once: a transcript keeps growing after it is
+  // mounted — code blocks get highlighted, images decode, tool cards measure — and each of
+  // those pushes the end further down than where the first pass landed.
+  useEffect(() => {
+    if (historyTick === 0) return;
+
+    const pin = () => {
+      const el = scrollRef.current;
+      if (!el) return;
+      pinTo(el, el.scrollHeight);
+      atBottomRef.current = true;
+    };
+
+    setAtBottom(true);
+    pin();
+
+    const frame = requestAnimationFrame(pin);
+    const timers = [60, 200, 500].map((delay) => window.setTimeout(pin, delay));
+
+    return () => {
+      cancelAnimationFrame(frame);
+      timers.forEach(window.clearTimeout);
+    };
+  }, [historyTick]);
 
   // Optimistic send (local bubble + send to the host). The effort gate is decided IN THE
   // HOST (it reads the folder's CLAUDE.md): when it blocks, it sends 'effortGate' and doesn't run;
@@ -493,9 +636,9 @@ export function App({ view, sessionId }: { view: 'chat' | 'hub'; sessionId: stri
       )}
 
       {/*
-        No folder strip here: in Visual Studio the conversation's folder is on the tool
-        window's own toolbar, which both names it and changes it. Saying it twice, one row
-        apart, only raises the question of whether the two are the same thing.
+        No folder strip here: in Visual Studio the conversation's folder is in the tool
+        window's caption, which is a row the IDE draws anyway. A strip of our own would
+        spend a row of a panel that is already a narrow column to say the same thing.
       */}
       <div className="scroll-wrap">
         {cliLoading ? (

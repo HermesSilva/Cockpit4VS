@@ -58,6 +58,19 @@ namespace Tootega.Cockpit.Cli
         private Process _process;
 
         /// <summary>
+        /// The prompt channel, in UTF-8 without a BOM.
+        ///
+        /// Not <c>Process.StandardInput</c>: on .NET Framework that writer is created with the
+        /// console's ANSI code page, so "não" left as CP-1252 bytes and the CLI, which reads
+        /// UTF-8, wrote replacement characters into the transcript. There is no
+        /// StandardInputEncoding to set on this framework, so the stream is wrapped by hand.
+        ///
+        /// UTF-8 without a BOM is not a preference: it is what the VS Code extension writes,
+        /// and a transcript has to be byte-for-byte usable from either editor.
+        /// </summary>
+        private StreamWriter _stdin;
+
+        /// <summary>
         /// The stdout/stderr reader loops, held so they are observed rather than orphaned.
         /// They are never awaited: they run for the lifetime of the process and end when the
         /// pipes close.
@@ -154,6 +167,7 @@ namespace Tootega.Cockpit.Cli
                 }
 
                 _process = process;
+                _stdin = Utf8StdinFor(process);
                 _startedAtTicks = Stopwatch.GetTimestamp();
                 _eventsSeen = 0;
                 _stopping = false;
@@ -175,6 +189,7 @@ namespace Tootega.Cockpit.Cli
                 Log.Error("spawn failed", ex);
                 RaiseStderr(ex.Message);
                 _process = null;
+                _stdin = null;
             }
         }
 
@@ -276,6 +291,8 @@ namespace Tootega.Cockpit.Cli
             }
 
             _process = null;
+
+            _stdin = null;
 
             // A process WE killed reports a non-zero code on Windows (taskkill /F). Logging
             // that as a failure sends whoever reads the log hunting a crash that never
@@ -427,6 +444,25 @@ namespace Tootega.Cockpit.Cli
             }
         }
 
+        /// <summary>Wraps a process's stdin in a UTF-8 writer, leaving its own alone.</summary>
+        private static StreamWriter Utf8StdinFor(Process process)
+        {
+            try
+            {
+                return new StreamWriter(process.StandardInput.BaseStream, new UTF8Encoding(false))
+                {
+                    AutoFlush = true,
+                };
+            }
+            catch (Exception ex)
+            {
+                // Falling back to the framework's writer keeps the conversation working, with
+                // the accents it used to mangle. Better than no channel at all.
+                Log.Error("stdin: could not open a UTF-8 channel; accented text may be mangled", ex);
+                return process.StandardInput;
+            }
+        }
+
         private void WriteLine(object payload)
         {
             if (_process == null) Start();
@@ -438,7 +474,7 @@ namespace Tootega.Cockpit.Cli
             {
                 try
                 {
-                    var stdin = _process?.StandardInput;
+                    var stdin = _stdin;
                     if (stdin == null) return;
                     stdin.Write(line);
                     stdin.Write('\n');
@@ -482,7 +518,12 @@ namespace Tootega.Cockpit.Cli
 
             try
             {
-                process.StandardInput?.Close();
+                // Closing our writer closes the underlying stream, which is the signal the CLI
+                // waits for; closing the framework's writer as well would only throw.
+                var stdin = _stdin;
+                _stdin = null;
+                if (stdin != null) stdin.Close();
+                else process.StandardInput?.Close();
             }
             catch
             {

@@ -296,8 +296,11 @@ namespace Tootega.Cockpit.Host
                     AllowAgents = _settings.AllowAgents,
                 },
 
-                // English-only: the questions come back in the same language as the UI.
-                AskLanguage = () => "en",
+                // Empty follows the conversation, which is what the user is actually writing in.
+                // The English-only rule is about this extension's own interface; it was never
+                // about what the agent says, and forcing "en" here made the CLI ask its
+                // questions in English to someone typing Portuguese.
+                AskLanguage = () => Blank(_settings.VoiceLanguage),
                 ExtraSystemPrompt = () => ExtraSystemPrompt(tabId),
             };
 
@@ -669,27 +672,6 @@ namespace Tootega.Cockpit.Host
                 _package.FindConversationWindow(_tabs.ActiveTab)?.Reload();
             }).FileAndForget("tootega/cockpit/reloadView");
 #pragma warning restore VSSDK007
-        }
-
-        /// <summary>
-        /// The toolbar's folder control. It routes through the same handler as the webview's
-        /// folder chip, so a move made from either side clears and reloads the conversation
-        /// identically — two paths to one behaviour, not two behaviours.
-        /// </summary>
-        public void ChangeFolder()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            _router.SetTabCwd(_tabs.EnsureActiveTab(), null);
-            _package.RefreshConversationCaptions();
-        }
-
-        public string CurrentFolder
-        {
-            get
-            {
-                var tab = _tabs.ActiveTab;
-                return tab != null && _tabs.Has(tab) ? _tabs.Cwd(tab) : null;
-            }
         }
 
         public void Interrupt() => _tabs.Active().Interrupt();

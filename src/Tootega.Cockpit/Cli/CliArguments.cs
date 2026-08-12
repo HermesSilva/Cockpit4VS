@@ -24,11 +24,30 @@ namespace Tootega.Cockpit.Cli
                 ["it"] = "Italian",
             };
 
+        /// <summary>
+        /// The rule for the language of the agent's questions.
+        ///
+        /// Two shapes, both taken from the base extension. When a language is named — the user
+        /// set one — it is named, which is what that extension's askLanguagePrompt does. When
+        /// none is, the rule is the one its document export uses: write in the language that
+        /// predominates in the conversation.
+        ///
+        /// Following the conversation is the right default <em>here</em> and not there, because
+        /// this port has no locale to fall back on. The base extension asks its own UI which
+        /// language the user chose; this one has no such setting by design, and the machine
+        /// cannot stand in for it — on the machine this was written for, Windows reports en-US
+        /// for its interface and pt-BR for its formats, while the prompts being typed are
+        /// Portuguese. The conversation is the only place the answer actually is.
+        /// </summary>
         public static string AskLanguagePrompt(string code)
         {
-            var name = LanguageNames.TryGetValue(code ?? string.Empty, out var known) ? known : code;
+            var rule = string.IsNullOrWhiteSpace(code)
+                ? "in the SAME language the user writes their prompts in — the language that " +
+                  "predominates in the conversation, whatever it is"
+                : "in " + (LanguageNames.TryGetValue(code, out var known) ? known : code);
+
             return "When you use the AskUserQuestion tool, write every question, header text, and " +
-                   "option label/description in " + name + ". This language rule applies ONLY to " +
+                   "option label/description " + rule + ". This language rule applies ONLY to " +
                    "AskUserQuestion content, not to your other replies.";
         }
 
@@ -39,16 +58,19 @@ namespace Tootega.Cockpit.Cli
         /// They are merged rather than passed as two flags because repeating
         /// --append-system-prompt does not accumulate — the last one wins — so two flags
         /// would mean one silently erasing the other.
+        ///
+        /// The language rule always goes, because there is no such thing as "no rule": without
+        /// it the questions come back in whatever language the model defaults to, which is the
+        /// bug this replaced. An empty <see cref="CliOptions.AskLanguage"/> is not "say nothing",
+        /// it is "follow the conversation" — see <see cref="AskLanguagePrompt"/>.
         /// </summary>
         public static string AppendedSystemPrompt(CliOptions options)
         {
-            var parts = new List<string>();
-            if (!string.IsNullOrWhiteSpace(options.AskLanguage))
-                parts.Add(AskLanguagePrompt(options.AskLanguage));
+            var parts = new List<string> { AskLanguagePrompt(options.AskLanguage) };
             if (!string.IsNullOrWhiteSpace(options.ExtraSystemPrompt))
                 parts.Add(options.ExtraSystemPrompt);
 
-            return parts.Count == 0 ? null : string.Join("\n\n", parts);
+            return string.Join("\n\n", parts);
         }
 
         /// <summary>

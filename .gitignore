@@ -25,3 +25,13 @@ scripts/icon-preview.png
 src/Tootega.Cockpit/WebView/main.js
 src/Tootega.Cockpit/WebView/main.css
 src/Tootega.Cockpit/WebView/*.map
+
+# Scratch output from inspecting the command tables: the compiled .vsct and the
+# decompilation read back out of it. Both are throwaway copies of tracked source.
+*-out.h
+*-out.vsct
+*.decompiled.h
+*.decompiled.vsct
+
+# Local run logs
+temp/

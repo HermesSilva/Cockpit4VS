@@ -41,6 +41,14 @@ namespace Tootega.Cockpit.Host
             // switch than to demand the caller got it right.
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
+            // Before anything is resolved, because a trace line must not create a conversation,
+            // make one active, or otherwise be visible in the thing it is observing.
+            if (message.Kind == WebviewMessageKinds.Trace)
+            {
+                Log.Debug("webview: " + message.GetString("text"));
+                return;
+            }
+
             var tabId = _host.Tabs.Has(origin) ? origin : _host.Tabs.EnsureActiveTab();
             var session = _host.Tabs.SessionFor(tabId);
 

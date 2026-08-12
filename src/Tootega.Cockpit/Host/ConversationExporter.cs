@@ -124,8 +124,14 @@ namespace Tootega.Cockpit.Host
 
                     try
                     {
-                        await process.StandardInput.WriteAsync(prompt);
-                        process.StandardInput.Close();
+                        // UTF-8 without a BOM, by hand: this framework builds StandardInput
+                        // with the console's ANSI code page, and a conversation exported
+                        // through it would lose every accent on the way in.
+                        using (var stdin = new StreamWriter(
+                            process.StandardInput.BaseStream, new UTF8Encoding(false)))
+                        {
+                            await stdin.WriteAsync(prompt);
+                        }
                     }
                     catch (IOException)
                     {

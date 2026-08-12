@@ -24,7 +24,6 @@ namespace Tootega.Cockpit
         public const int ApiKeyId = 1008;
         public const int UsageId = 1009;
         public const int Utf8FixId = 1010;
-        public const int FolderId = 1011;
 
         public static ImageMoniker Cockpit => Make(CockpitId);
         public static ImageMoniker NewSession => Make(NewSessionId);
@@ -37,7 +36,6 @@ namespace Tootega.Cockpit
         public static ImageMoniker ApiKey => Make(ApiKeyId);
         public static ImageMoniker Usage => Make(UsageId);
         public static ImageMoniker Utf8Fix => Make(Utf8FixId);
-        public static ImageMoniker Folder => Make(FolderId);
 
         private static ImageMoniker Make(int id) => new ImageMoniker { Guid = Catalog, Id = id };
     }

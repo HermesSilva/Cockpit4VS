@@ -27,7 +27,6 @@
     <ID Name="ApiKeyIcon" Value="1008" />
     <ID Name="UsageIcon" Value="1009" />
     <ID Name="Utf8FixIcon" Value="1010" />
-    <ID Name="FolderIcon" Value="1011" />
   </Symbols>
 
   <Images>
@@ -64,9 +63,6 @@
     </Image>
     <Image Guid="$(CockpitImages)" ID="$(Utf8FixIcon)">
       <Source Uri="$(Resources)/Icons/Utf8Fix.xaml" />
-    </Image>
-    <Image Guid="$(CockpitImages)" ID="$(FolderIcon)">
-      <Source Uri="$(Resources)/Icons/Folder.xaml" />
     </Image>
   </Images>
 </ImageManifest>
