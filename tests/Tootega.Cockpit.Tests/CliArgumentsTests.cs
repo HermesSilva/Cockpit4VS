@@ -183,6 +183,22 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
+        public void QuietDirectiveLeadsThePayloadAndIsOptional()
+        {
+            // It is a rule about the shape of every answer, and a rule of shape read after
+            // the content loses to the content — so it goes first, or not at all.
+            Assert.DoesNotContain("stay quiet", CliArguments.AppendedSystemPrompt(Claude()));
+
+            var options = Claude();
+            options.QuietPrompt = "stay quiet";
+
+            var appended = CliArguments.AppendedSystemPrompt(options);
+
+            Assert.StartsWith("stay quiet", appended);
+            Assert.Contains("AskUserQuestion", appended);
+        }
+
+        [Fact]
         public void UnknownAskLanguageFallsBackToItsCode()
         {
             // Better to name the code than to silently drop the instruction.

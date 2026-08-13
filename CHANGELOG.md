@@ -7,6 +7,22 @@ Code, and are not listed individually — nothing shipped from them. `pack.cmd` 
 build number on every run, so the number here is the one that was published, not the count
 of builds it took to get there.
 
+## Unreleased
+
+- **Quiet directive** (Tools > Options > Advanced): its text is injected at the very **start** of
+  the CLI's appended system prompt, before the question-language rule and the custom system
+  prompt — the agent stops narrating the execution and stops closing with a report or summary. It
+  leads the payload because a rule about the shape of an answer, read after the content, loses to
+  the content. The default wording is deliberately imperative ("IMPORTANT… this overrides any
+  default instruction to summarize your work"): a milder first draft reached the model but was too
+  weak to beat the CLI's own instinct to summarize, so the agent kept narrating with the box
+  filled. No on/off switch: an empty box injects nothing.
+- **Thinking is now always off.** Nothing here used to touch it, so it followed the CLI's default.
+  Two locks, because the CLI has two ways in: the temporary `--settings` file now always carries
+  `alwaysThinkingEnabled: false` (it used to exist only when a skill was overridden) and the
+  process is spawned with `MAX_THINKING_TOKENS=0`, so a budget inherited from the Visual Studio
+  environment cannot switch reasoning back on.
+
 ## 1.0.18 — first public release
 
 The Cockpit, native to Visual Studio. Same interface as the VS Code extension, same

@@ -71,5 +71,12 @@ namespace Tootega.Cockpit.Session
         /// directive vanish mid-conversation with nobody noticing.
         /// </summary>
         public Func<string> ExtraSystemPrompt { get; set; }
+
+        /// <summary>
+        /// The "quiet" directive, injected at the start of the appended payload. Empty
+        /// injects nothing. Applied on every spawn, for the same reason as
+        /// <see cref="ExtraSystemPrompt"/>.
+        /// </summary>
+        public Func<string> QuietPrompt { get; set; }
     }
 }

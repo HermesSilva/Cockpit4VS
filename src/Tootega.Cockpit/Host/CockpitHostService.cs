@@ -302,6 +302,7 @@ namespace Tootega.Cockpit.Host
                 // questions in English to someone typing Portuguese.
                 AskLanguage = () => Blank(_settings.VoiceLanguage),
                 ExtraSystemPrompt = () => ExtraSystemPrompt(tabId),
+                QuietPrompt = () => Blank(_settings.QuietPrompt),
             };
 
             var session = new CockpitSession(hooks, _statsStore, _skillIndex);

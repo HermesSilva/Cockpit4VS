@@ -103,7 +103,12 @@ inline SVG QR codes, so they never touch disk.
 - **Interface** — notifications, expansion defaults, timeline verbosity, spell check, your
   display name, and the title bar button.
 - **Voice** — ffmpeg path, dictation language, post-dictation correction.
-- **Advanced** — internal model, custom system prompt, OTEL receiver, debug logging.
+- **Advanced** — internal model, quiet directive, custom system prompt, OTEL receiver, debug
+  logging.
+
+The **quiet directive** leads the text appended to the CLI's system prompt, before the
+question-language rule and your own text: it tells the agent not to narrate the execution and
+not to close with a report or summary. It has no on/off switch — an empty box injects nothing.
 
 Defaults match the VS Code extension, so moving between the two editors changes nothing
 about how the agent behaves.

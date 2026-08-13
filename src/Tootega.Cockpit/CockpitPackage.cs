@@ -58,6 +58,11 @@ namespace Tootega.Cockpit
             Log.DebugEnabled = options.DebugLog;
             Log.Info("Tootega Cockpit activating…");
 
+            // One-off migration: rewrite the weak first Quiet default (which reached the model but
+            // let the agent keep narrating) to the stronger form — only when never customized.
+            if (options.MigrateStaleQuietDefault())
+                Log.Info("Quiet directive: stale default rewritten to the stronger form.");
+
             // The orchestration comes up before the commands, so the ones that act on a
             // conversation are enabled from the first click rather than greyed out until
             // something else happens to construct it.

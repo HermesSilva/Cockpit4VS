@@ -186,6 +186,7 @@ namespace Tootega.Cockpit.Session
                 ResumeSessionId = ResumeId ?? SessionId,
                 AskLanguage = _hooks.AskLanguage?.Invoke(),
                 ExtraSystemPrompt = _hooks.ExtraSystemPrompt?.Invoke(),
+                QuietPrompt = _hooks.QuietPrompt?.Invoke(),
                 // 'on' is the CLI default: sending it changes nothing and only clutters
                 // the settings file.
                 SkillOverrides = SkillOverrides

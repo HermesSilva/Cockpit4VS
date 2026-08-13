@@ -63,10 +63,16 @@ namespace Tootega.Cockpit.Cli
         /// it the questions come back in whatever language the model defaults to, which is the
         /// bug this replaced. An empty <see cref="CliOptions.AskLanguage"/> is not "say nothing",
         /// it is "follow the conversation" — see <see cref="AskLanguagePrompt"/>.
+        ///
+        /// The quiet directive comes FIRST on purpose: it is a rule about the shape of every
+        /// answer, and a rule of shape read after the content loses to the content.
         /// </summary>
         public static string AppendedSystemPrompt(CliOptions options)
         {
-            var parts = new List<string> { AskLanguagePrompt(options.AskLanguage) };
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(options.QuietPrompt))
+                parts.Add(options.QuietPrompt);
+            parts.Add(AskLanguagePrompt(options.AskLanguage));
             if (!string.IsNullOrWhiteSpace(options.ExtraSystemPrompt))
                 parts.Add(options.ExtraSystemPrompt);
 

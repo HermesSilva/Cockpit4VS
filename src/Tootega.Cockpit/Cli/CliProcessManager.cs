@@ -118,16 +118,21 @@ namespace Tootega.Cockpit.Cli
             if (_options.Engine != EngineIds.Tootega)
             {
                 var appended = CliArguments.AppendedSystemPrompt(_options);
-                // Only the user's own text needs the file route; the language rule alone is
-                // a single safe line.
-                if (!string.IsNullOrEmpty(appended) && !string.IsNullOrWhiteSpace(_options.ExtraSystemPrompt))
+                // Only free text typed by the user needs the file route; the language rule
+                // alone is a single safe line.
+                var userText = !string.IsNullOrWhiteSpace(_options.ExtraSystemPrompt) ||
+                               !string.IsNullOrWhiteSpace(_options.QuietPrompt);
+                if (!string.IsNullOrEmpty(appended) && userText)
                     promptFile = WriteTempFile("prompt", appended);
 
+                // Thinking stays OFF always, so this file is now written on every spawn (it
+                // used to exist only when a skill was overridden). Two locks because the CLI
+                // has two ways in: this setting and the MAX_THINKING_TOKENS budget (env, set
+                // in SpawnWith). Closing one leaves the other in force.
+                var settings = new Dictionary<string, object> { ["alwaysThinkingEnabled"] = false };
                 if (_options.SkillOverrides != null && _options.SkillOverrides.Count > 0)
-                {
-                    var payload = Json.Serialize(new Dictionary<string, object> { ["skillOverrides"] = _options.SkillOverrides });
-                    settingsFile = WriteTempFile("settings", payload);
-                }
+                    settings["skillOverrides"] = _options.SkillOverrides;
+                settingsFile = WriteTempFile("settings", Json.Serialize(settings));
             }
 
             SpawnWith(CliArguments.For(_options, promptFile, settingsFile));
@@ -155,6 +160,11 @@ namespace Tootega.Cockpit.Cli
                 // must through control_request.
                 if (_options.PermissionMode == "auto")
                     info.EnvironmentVariables["CLAUDE_CODE_ENABLE_AUTO_MODE"] = "1";
+
+                // Thinking stays off. This is the pair of alwaysThinkingEnabled:false in the
+                // settings file — a budget inherited from the Visual Studio process
+                // environment would switch reasoning back on despite the setting.
+                info.EnvironmentVariables["MAX_THINKING_TOKENS"] = "0";
 
                 var process = new Process { StartInfo = info, EnableRaisingEvents = true };
                 process.Exited += OnProcessExited;

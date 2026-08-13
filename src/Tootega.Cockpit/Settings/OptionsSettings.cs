@@ -41,6 +41,7 @@ namespace Tootega.Cockpit.Settings
         public string VoiceLanguage => _options.VoiceLanguage;
 
         public string InternalModel => _options.InternalModel;
+        public string QuietPrompt => _options.QuietPrompt;
         public string SystemPromptText => _options.SystemPromptText;
         public bool SystemPromptEnabled => _options.SystemPromptEnabled;
         public bool OtelEnabled => _options.OtelEnabled;

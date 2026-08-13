@@ -131,6 +131,22 @@ namespace Tootega.Cockpit.Options
         public string InternalModel { get; set; } = "claude-haiku-4-5";
 
         [Category(CatAdvanced)]
+        [DisplayName("Quiet directive")]
+        [Description("Injected at the very start of the system prompt on every CLI start: the agent stops " +
+                     "narrating the execution and stops closing with a report or summary. Independent of the " +
+                     "custom system prompt below — empty injects nothing.")]
+        [Editor("System.ComponentModel.Design.MultilineStringEditor, System.Design", "System.Drawing.Design.UITypeEditor, System.Drawing")]
+        public string QuietPrompt { get; set; } =
+            "IMPORTANT — output discipline (this overrides any default instruction to summarize or " +
+            "explain your work): Work silently. Do not narrate the task while doing it: no preamble, " +
+            "no \"I will now…\", no play-by-play between tool calls, no \"let me…\". When the work is " +
+            "finished, state ONLY that it is finished — a single short sentence such as \"Done.\" Do NOT " +
+            "produce a closing report, a summary, a bulleted list of changes, or a restatement of what " +
+            "the files or edits contain. The user can see the changes; repeating them is exactly what " +
+            "this rule forbids. This rule governs the shape of every response. Answer direct questions " +
+            "normally; this is about narration and closing reports, not about replying to the user.";
+
+        [Category(CatAdvanced)]
         [DisplayName("Custom system prompt")]
         [Description("Text appended to the CLI system prompt on every start. Supports ${defaultShell}, ${projectPathWin}, ${wslRow} and friends.")]
         [Editor("System.ComponentModel.Design.MultilineStringEditor, System.Design", "System.Drawing.Design.UITypeEditor, System.Drawing")]
@@ -155,6 +171,32 @@ namespace Tootega.Cockpit.Options
         [DisplayName("Debug logging")]
         [Description("Verbose logging in the Tootega Cockpit output pane.")]
         public bool DebugLog { get; set; } = false;
+
+        /// <summary>
+        /// The first <see cref="QuietPrompt"/> default. It reached the model but was too weak to
+        /// override the CLI's own instinct to summarize its work, so the agent kept narrating even
+        /// with the box filled. Kept only so the one-off migration can recognize an untouched value.
+        /// </summary>
+        private const string OldQuietDefault =
+            "Work silently. While executing the task, do not narrate it: no commentary on what you are " +
+            "about to do, what you are doing, or what you have just done, and no running explanation " +
+            "between tool calls. When the work is finished, do not produce a report, a summary, or a list " +
+            "of the changes — state only that it is finished. Answer direct questions normally; this rule " +
+            "is about narration and closing reports, not about replying to the user.";
+
+        /// <summary>
+        /// One-off migration: a user who never touched the Quiet box has the OLD default persisted in
+        /// the registry, so the new stronger default never reaches them and the agent keeps narrating.
+        /// This rewrites it to the current default — but ONLY when the saved value is byte-for-byte the
+        /// old default, so a real customization is never clobbered. Returns true when it rewrote.
+        /// </summary>
+        public bool MigrateStaleQuietDefault()
+        {
+            if (QuietPrompt != OldQuietDefault) return false;
+            QuietPrompt = new CockpitOptions().QuietPrompt; // the current default
+            base.SaveSettingsToStorage();
+            return true;
+        }
 
         /// <summary>Raised after the user closes the page with OK, so live sessions can react.</summary>
         public static event EventHandler Applied;

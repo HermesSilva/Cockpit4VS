@@ -43,6 +43,12 @@ namespace Tootega.Cockpit.Cli
         public string ExtraSystemPrompt { get; set; }
 
         /// <summary>
+        /// The "quiet" directive: it goes at the very START of the appended payload, before
+        /// anything else. Empty injects nothing — the agent narrates and reports as usual.
+        /// </summary>
+        public string QuietPrompt { get; set; }
+
+        /// <summary>
         /// Skill listing overrides (--settings JSON). Scoped to THIS process only; the
         /// user's ~/.claude/settings.json is never touched.
         /// </summary>

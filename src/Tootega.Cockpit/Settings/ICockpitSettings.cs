@@ -40,6 +40,7 @@ namespace Tootega.Cockpit.Settings
 
         // Advanced
         string InternalModel { get; }
+        string QuietPrompt { get; }
         string SystemPromptText { get; }
         bool SystemPromptEnabled { get; }
         bool OtelEnabled { get; }
