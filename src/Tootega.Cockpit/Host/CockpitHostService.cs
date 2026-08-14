@@ -279,6 +279,14 @@ namespace Tootega.Cockpit.Host
                     });
                 },
 
+                // Plan mode: write the plan under Planing/ and open it. Runs on the UI thread and
+                // waits, like FileText — the permission card needs the path back to render its link.
+                SavePlan = plan => ThreadHelper.JoinableTaskFactory.Run(async delegate
+                {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    return _editor.SavePlanFile(plan, _tabs.Cwd(tabId));
+                }),
+
                 ClaudePath = engine => _engines.PathFor(engine ?? _engines.Current),
 
                 // The tab's folder, read per turn rather than captured: the user can move a tab

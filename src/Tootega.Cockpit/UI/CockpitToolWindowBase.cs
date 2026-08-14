@@ -17,6 +17,7 @@ namespace Tootega.Cockpit.UI
     internal abstract class CockpitToolWindowBase : ToolWindowPane
     {
         private CockpitWebView _view;
+        private bool _tabAcquired;
 
         protected CockpitToolWindowBase(string caption, string mode)
         {
@@ -40,14 +41,41 @@ namespace Tootega.Cockpit.UI
         /// <summary>
         /// Creates the WebView2 lazily: a tool window can be restored on VS start while
         /// hidden, and paying for a browser instance nobody is looking at is not free.
+        ///
+        /// Rebuildable on purpose. Closing a tool window frame disposes the WebView (see
+        /// <see cref="Dispose"/>), but the shell keeps the pane instance and reuses it when the
+        /// window is re-opened, without calling <see cref="OnCreate"/> a second time. A window
+        /// that only built its view in OnCreate would then come back blank — the symptom of
+        /// closing and re-opening the hub. So this both creates the view and recreates it, and
+        /// <see cref="EnsureAlive"/> calls it on every show.
+        ///
+        /// The tab is acquired once and kept: a rebuilt conversation window keeps the same
+        /// conversation rather than taking a fresh one each time it is re-shown.
         /// </summary>
         protected void EnsureView()
         {
-            if (_view != null) return;
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            // A view that is still alive needs nothing. A view that exists but whose browser was
+            // disposed — the shell does that when the tool window is closed with its X, without
+            // disposing this pane — has its browser rebuilt in place. The CockpitWebView object and
+            // the pane's Content stay the same: re-assigning a ToolWindowPane's Content after it is
+            // sited does not re-host it in the frame, which is why the whole panel vanished when
+            // the view was swapped wholesale. Only the dead WebView2 inside it is replaced.
+            if (_view != null)
+            {
+                // A browser can read as dead for a moment while Visual Studio re-parents it — that
+                // is what detaching the panel does — and it comes back on its own. Only a browser
+                // that is still dead a tick later, which is the close-with-the-X case, is rebuilt.
+                // Deciding immediately is what turned a detach into a rebuild loop that seized the
+                // foreground.
+                _view.ReviveIfStillDead();
+                return;
+            }
 
             var host = CockpitPackage.Instance?.Host;
 
-            if (BindsToTab)
+            if (BindsToTab && !_tabAcquired)
             {
                 // The tab the package asked for, when it is opening a specific conversation.
                 // Otherwise this window is being restored by the shell on start-up and there is
@@ -59,6 +87,8 @@ namespace Tootega.Cockpit.UI
                     Log.Error("The host is not available yet; the conversation window cannot open.");
                     return;
                 }
+
+                _tabAcquired = true;
             }
 
             _view = new CockpitWebView(Mode, TabId);
@@ -87,6 +117,19 @@ namespace Tootega.Cockpit.UI
                 }
             }).FileAndForget("tootega/cockpit/initializeView");
 #pragma warning restore VSSDK007
+        }
+
+        /// <summary>
+        /// Rebuilds the view if a previous frame close disposed it.
+        ///
+        /// The shell reuses a hidden pane on re-open without a second <see cref="OnCreate"/>, so
+        /// showing a window whose view was torn down would show nothing. Every show path runs
+        /// this so the browser is present whenever the window is.
+        /// </summary>
+        public void EnsureAlive()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            EnsureView();
         }
 
         /// <summary>
@@ -129,6 +172,7 @@ namespace Tootega.Cockpit.UI
 
         protected override void OnCreate()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             base.OnCreate();
             EnsureView();
         }

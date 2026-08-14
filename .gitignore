@@ -35,3 +35,6 @@ src/Tootega.Cockpit/WebView/*.map
 
 # Local run logs
 temp/
+
+# Plan-mode plans written by the extension (ExitPlanMode), one file per plan
+Planing/

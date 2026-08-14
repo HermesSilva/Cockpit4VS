@@ -137,6 +137,55 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
+        public async Task LocatesALiveInteractiveSessionAsLocal()
+        {
+            // The interactive terminal we handed the session to: a live pid with kind interactive.
+            WriteEntry("own.json",
+                "{\"pid\":" + OwnPid + ",\"sessionId\":\"mine\",\"kind\":\"interactive\"}");
+
+            Assert.Equal(SessionLocation.Local, await _registry.LocateSessionAsync("mine"));
+        }
+
+        [Fact]
+        public async Task LocatesALiveNonInteractiveSessionAsCloud()
+        {
+            // A live entry the CLI does not call interactive: a cloud or phone peer is driving it.
+            WriteEntry("own.json",
+                "{\"pid\":" + OwnPid + ",\"sessionId\":\"mine\",\"kind\":\"cloud\"}");
+
+            Assert.Equal(SessionLocation.Cloud, await _registry.LocateSessionAsync("mine"));
+        }
+
+        [Fact]
+        public async Task LocatesAStaleSessionAsOffline()
+        {
+            // The pid died and left no other owner: the connection dropped.
+            WriteEntry("dead.json",
+                "{\"pid\":999999,\"sessionId\":\"ghost\",\"kind\":\"interactive\"}");
+
+            Assert.Equal(SessionLocation.Offline, await _registry.LocateSessionAsync("ghost"));
+        }
+
+        [Fact]
+        public async Task LocatesAnUnknownSessionAsOffline()
+        {
+            Assert.Equal(SessionLocation.Offline, await _registry.LocateSessionAsync("nobody"));
+        }
+
+        [Fact]
+        public async Task PrefersLocalOverCloudWhenBothArePresent()
+        {
+            // A conversation can show up as both a cloud peer and our local terminal (e.g. right
+            // after taking it back). Owning it locally is the stronger, actionable truth.
+            WriteEntry("cloud.json",
+                "{\"pid\":" + OwnPid + ",\"sessionId\":\"mine\",\"kind\":\"cloud\"}");
+            WriteEntry("local.json",
+                "{\"pid\":" + OwnPid + ",\"sessionId\":\"mine\",\"kind\":\"interactive\"}");
+
+            Assert.Equal(SessionLocation.Local, await _registry.LocateSessionAsync("mine"));
+        }
+
+        [Fact]
         public void RecognisesTheCurrentProcessAsAlive()
         {
             Assert.True(SessionRegistry.IsPidAlive(OwnPid));

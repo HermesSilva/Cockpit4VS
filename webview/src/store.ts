@@ -34,7 +34,7 @@ export interface TabState {
   // The tab was handed over to a Remote Control session in the terminal: the terminal or
   // phone drives it from there, and this composer stays out of the way.
   remote?: boolean;
-  remotePhase?: 'connecting' | 'active' | 'failed';
+  remotePhase?: 'connecting' | 'active' | 'failed' | 'cloud' | 'offline';
   compacting?: boolean; // the CLI is condensing the context right now
   sessionId?: string; // transcript id (matches SessionInfo.id); comes from 'tabs'
   /**

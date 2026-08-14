@@ -103,11 +103,11 @@ namespace Tootega.Cockpit.Protocol
         public static HostMessage PermissionRequest(string requestId, string tool, object input,
                                                     string displayName = null, string description = null,
                                                     IReadOnlyList<PermissionSuggestion> suggestions = null,
-                                                    string oldText = null) =>
+                                                    string oldText = null, string planFile = null) =>
             new HostMessage("permissionRequest",
                 ("requestId", requestId), ("tool", tool), ("displayName", displayName),
                 ("description", description), ("input", input),
-                ("suggestions", suggestions), ("oldText", oldText));
+                ("suggestions", suggestions), ("oldText", oldText), ("planFile", planFile));
 
         public static HostMessage AskRequest(string requestId, IReadOnlyList<AskQuestion> questions) =>
             new HostMessage("askRequest", ("requestId", requestId), ("questions", questions));
@@ -211,7 +211,7 @@ namespace Tootega.Cockpit.Protocol
         public static HostMessage ResolvedPath(string requestId, string text) =>
             new HostMessage("resolvedPath", ("requestId", requestId), ("text", text));
 
-        public static HostMessage MentionResults(string requestId, IReadOnlyList<string> items) =>
+        public static HostMessage MentionResults(string requestId, IReadOnlyList<MentionItem> items) =>
             new HostMessage("mentionResults", ("requestId", requestId), ("items", items));
 
         /// <summary>The editor selection to share as @file#a-b, or absent to clear it.</summary>

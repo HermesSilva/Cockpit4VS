@@ -202,6 +202,11 @@ namespace Tootega.Cockpit
                 return null;
             }
 
+            // Rebuild the browser first when a previous close disposed it: the shell reuses a
+            // hidden pane without a second OnCreate, so without this the re-opened window would
+            // show an empty frame — the close-then-reopen-the-hub failure.
+            window.EnsureAlive();
+
             var frame = (Microsoft.VisualStudio.Shell.Interop.IVsWindowFrame)window.Frame;
             Log.Debug("window: showing the " + what + " window and handing it the focus.");
             Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(frame.Show());

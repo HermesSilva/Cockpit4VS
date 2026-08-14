@@ -190,19 +190,185 @@ namespace Tootega.Cockpit.Host
             }
         }
 
-        public void OpenDocument(string path)
+        public void OpenDocument(string path, int? line = null)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
 
             try
             {
-                Dte()?.ItemOperations.OpenFile(path);
+                var window = Dte()?.ItemOperations.OpenFile(path);
+                if (line.HasValue && window?.Document?.Selection is TextSelection selection)
+                {
+                    // GotoLine is 1-based, like the #L anchor; clamp to at least 1.
+                    selection.GotoLine(Math.Max(1, line.Value), false);
+                }
             }
             catch (Exception ex)
             {
                 Log.Debug("editor: could not open " + path + ": " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Opens a link the chat produced: a web URL goes to the browser; anything else is a
+        /// file reference from a tool card (Read/Edit/Write) and opens in the editor.
+        ///
+        /// This is the counterpart of the base extension's <c>openLink</c>: the href is a
+        /// workspace-relative path, an absolute path, or a bare file name, optionally suffixed
+        /// with a <c>#L12</c> line anchor. A relative path is resolved against the tab's cwd;
+        /// when it does not exist there, the file name is searched across the workspace. Without
+        /// this, clicking a file on the timeline did nothing — OpenExternal refuses non-web hrefs.
+        /// </summary>
+        public void OpenLink(string href, string cwd = null)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (string.IsNullOrWhiteSpace(href)) return;
+
+            if (href.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                href.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenExternal(href);
+                return;
+            }
+
+            var raw = href;
+
+            // Optional line anchor (#L12), matching the base extension.
+            int? line = null;
+            var anchor = System.Text.RegularExpressions.Regex.Match(raw, @"#L(\d+)\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (anchor.Success)
+            {
+                if (int.TryParse(anchor.Groups[1].Value, out var parsed)) line = parsed;
+                raw = raw.Substring(0, raw.Length - anchor.Length);
+            }
+
+            // Strip a file:// scheme and surrounding quotes, then decode percent-escapes.
+            raw = System.Text.RegularExpressions.Regex.Replace(raw, @"^file://", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            raw = raw.Trim('"', '\'');
+            try { raw = Uri.UnescapeDataString(raw); } catch { /* already decoded */ }
+            raw = raw.Normalize(System.Text.NormalizationForm.FormC);
+
+            var root = string.IsNullOrEmpty(cwd) ? WorkspaceCwd() : cwd;
+
+            string abs;
+            try
+            {
+                abs = Path.IsPathRooted(raw) ? raw : Path.GetFullPath(Path.Combine(root, raw));
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("editor: bad file link '" + href + "': " + ex.Message);
+                return;
+            }
+
+            if (!File.Exists(abs))
+            {
+                // Fallback: find the bare file name anywhere in the workspace (first match).
+                var found = FindByName(Path.GetFileName(raw), root);
+                if (found == null)
+                {
+                    Log.Debug("editor: file not found for link '" + href + "'");
+                    return;
+                }
+                abs = found;
+            }
+
+            OpenDocument(abs, line);
+        }
+
+        /// <summary>First file with this name under the workspace, or null. UI thread not required.</summary>
+        private static string FindByName(string name, string root)
+        {
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrEmpty(root)) return null;
+
+            try
+            {
+                foreach (var file in EnumerateFiles(root))
+                {
+                    if (string.Equals(Path.GetFileName(file), name, StringComparison.OrdinalIgnoreCase)) return file;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("editor: workspace search for '" + name + "' failed: " + ex.Message);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Writes a plan-mode plan to <c>Planing/&lt;timestamp&gt;-&lt;slug&gt;.md</c> at the repo
+        /// root and opens it in the editor. Returns the workspace-relative path, or null when
+        /// nothing could be written. Port of ChatViewProvider.savePlanFile.
+        ///
+        /// The file is the plan's primary surface now — the permission card keeps only the
+        /// approval gate. The name carries a sortable timestamp plus a short slug from the first
+        /// heading, so the folder reads as a history rather than one overwritten file.
+        /// </summary>
+        public string SavePlanFile(string plan, string cwd = null)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (string.IsNullOrEmpty(plan)) return null;
+
+            var root = string.IsNullOrEmpty(cwd) ? WorkspaceCwd() : cwd;
+            if (string.IsNullOrEmpty(root)) return null;
+
+            try
+            {
+                var dir = Path.Combine(root, "Planing");
+                Directory.CreateDirectory(dir);
+
+                var now = DateTime.Now;
+                var stamp = now.ToString("yyyy-MM-dd-HHmm");
+                var slug = PlanSlug(plan);
+                var name = string.IsNullOrEmpty(slug) ? stamp + ".md" : stamp + "-" + slug + ".md";
+                var abs = Path.Combine(dir, name);
+
+                File.WriteAllText(abs, plan.EndsWith("\n") ? plan : plan + "\n");
+
+                OpenDocument(abs);
+
+                return MakeRelative(abs, root);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("editor: could not save the plan file: " + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// A short filename slug from a plan's first meaningful line — the first heading, else the
+        /// first non-empty line. Lowercased ASCII words joined by '-', capped. Empty when the plan
+        /// has no usable text (the caller then names by timestamp only).
+        /// </summary>
+        private static string PlanSlug(string plan)
+        {
+            var lines = plan.Split('\n');
+            string first = null;
+            foreach (var raw in lines)
+            {
+                var line = raw.Trim();
+                if (line.Length == 0) continue;
+                var heading = System.Text.RegularExpressions.Regex.Match(line, @"^#{1,6}\s+(.*)$");
+                if (heading.Success) { first = heading.Groups[1].Value; break; }
+                if (first == null) first = line; // remember the first non-empty; keep scanning for a heading
+            }
+            if (string.IsNullOrEmpty(first)) return string.Empty;
+
+            var ascii = first.Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder();
+            foreach (var ch in ascii)
+            {
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) == System.Globalization.UnicodeCategory.NonSpacingMark)
+                    continue; // strip diacritics
+                var lower = char.ToLowerInvariant(ch);
+                sb.Append(lower >= 'a' && lower <= 'z' || lower >= '0' && lower <= '9' ? lower : '-');
+            }
+
+            var slug = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), "-+", "-").Trim('-');
+            return slug.Length > 50 ? slug.Substring(0, 50).Trim('-') : slug;
         }
 
         /// <summary>Opens a URL in the user's browser, never inside the panel.</summary>

@@ -339,30 +339,49 @@ namespace Tootega.Cockpit.Session
             ResetBackgroundTasks();
         }
 
-        /// <summary>Clears the conversation entirely, statistics included.</summary>
-        public void ClearConversation()
+        /// <summary>
+        /// Tears the conversation down without publishing a replacement aggregator. The caller
+        /// decides which aggregator becomes visible next, so a reader never sees a half-built one.
+        /// </summary>
+        private void TearDownConversation()
         {
             Stop();
             SessionId = null;
             // The resume id goes too. Without that, after clearing a resumed session the next
             // send would respawn with --resume of the old one and nothing would look cleared.
             ResumeId = null;
-            Stats = NewStats();
             // A new conversation gets a new id, and the webview goes back to waiting for
             // history — so it has to be announced again.
             _historyAnnounced = false;
         }
 
+        /// <summary>Clears the conversation entirely, statistics included.</summary>
+        public void ClearConversation()
+        {
+            TearDownConversation();
+            Stats = NewStats();
+        }
+
         public void Resume(string sessionId)
         {
-            ClearConversation();
+            TearDownConversation();
             ResumeId = sessionId;
 
             // Hydrating is what keeps the numbers coherent: the CLI does not re-emit the usage
             // of old turns on --resume, so without this a reopened context reads as zero.
+            //
+            // Build and hydrate a fresh aggregator, then publish it to Stats in a single
+            // assignment. A concurrent reader (the UsageMonitor timer runs off the UI thread and
+            // snapshots every open session) must never observe the aggregator in its un-hydrated
+            // state — with lastTurnTs=0 its snapshot omits cacheExpiresAt and the webview drops
+            // the Cache-life marker until the next tick. That intermittent flicker is exactly
+            // what the single-threaded base repo never exhibits. Assigning only the finished
+            // aggregator (never NewStats() first) closes the window entirely.
+            var fresh = NewStats();
             var persisted = _statsStore.Load(sessionId);
-            if (persisted != null) Stats.Hydrate(persisted);
-            Stats.MarkReopen();
+            if (persisted != null) fresh.Hydrate(persisted);
+            fresh.MarkReopen();
+            Stats = fresh;
 
             var snapshot = Stats.Snapshot();
             Log.Debug("session: resume " + sessionId + " (" +
@@ -751,6 +770,17 @@ namespace Tootega.Cockpit.Session
                 return;
             }
 
+            // Plan mode: persist the plan to Planing/ and open it in the editor. The file is the
+            // primary surface now; the permission card keeps only the approval gate.
+            string planFile = null;
+            if (tool == "ExitPlanMode" && input?.ValueKind == JsonValueKind.Object &&
+                input.Value.TryGetProperty("plan", out var planRaw) &&
+                planRaw.ValueKind == JsonValueKind.String)
+            {
+                var plan = planRaw.GetString();
+                if (!string.IsNullOrEmpty(plan)) planFile = _hooks.SavePlan?.Invoke(plan);
+            }
+
             Emit(HostMessages.PermissionRequest(
                 requestId, tool, input,
                 ReadRequestString(value, "display_name"),
@@ -758,7 +788,8 @@ namespace Tootega.Cockpit.Session
                 suggestions,
                 // Current content on disk, so the modal can show a diff rather than just the
                 // proposed text.
-                _hooks.FileText?.Invoke(tool, input)));
+                _hooks.FileText?.Invoke(tool, input),
+                planFile));
         }
 
         private void OnControlResponse(ClaudeEvent value)

@@ -176,6 +176,41 @@ namespace Tootega.Cockpit.UI
         }
 
         /// <summary>
+        /// Whether the underlying browser is still usable, or has been disposed under us.
+        ///
+        /// Closing a tool window with its X disposes the WebView2 without disposing the WPF
+        /// control that wraps it, and that disposal is one-way. The tell is not the control's
+        /// <c>CoreWebView2</c> getter — that keeps returning its cached value — but the
+        /// <see cref="Microsoft.Web.WebView2.Core.CoreWebView2Controller"/>, whose members throw
+        /// <see cref="ObjectDisposedException"/> once the control is gone. So the probe touches the
+        /// controller, which is exactly the object that fails when focus is handed to a dead view.
+        /// </summary>
+        public bool IsAlive()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            // No controller yet means the browser is still coming up, which is alive: a not-yet
+            // ready view must not be torn down and rebuilt in a loop.
+            if (_controller == null) return true;
+
+            try
+            {
+                // Reading a property is enough to surface the disposal; Bounds is cheap and has
+                // no side effect. IsVisible would do as well — the point is only to touch it.
+                _ = _controller.Bounds;
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Hands keyboard focus to the page.
         ///
         /// Focusing the WPF control only says which element WPF will send input to; the page
@@ -224,14 +259,34 @@ namespace Tootega.Cockpit.UI
         /// Tabbing *within* the page is the browser's own and is untouched, and the way out
         /// (MoveFocusRequested, when the page runs out of elements) still belongs to the control.
         /// </summary>
+        private DateTime _lastTabInto = DateTime.MinValue;
+
         bool IKeyboardInputSink.TabInto(TraversalRequest request)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
+
+            // Guard against a focus storm. Handing focus to the page raises a blur on the way,
+            // and the shell answers a blur by tabbing in again; right after the browser is rebuilt,
+            // or when the page re-renders on a send and moves its own focus, the two resonate and
+            // TabInto fires thousands of times a second, which seizes the foreground and freezes
+            // the IDE. A TabInto that arrives within a beat of the last time WE drove the page
+            // focus is that echo, not a real navigation, so it is accepted WITHOUT re-driving the
+            // focus that started the echo — which is what breaks the loop.
+            //
+            // The window is measured from the last real drive, NOT re-armed on every echo: arming
+            // it on the echoes would keep it open for as long as the storm lasted and the loop
+            // would never converge. That was the freeze-on-send.
+            var echo = (DateTime.UtcNow - _lastTabInto).TotalMilliseconds < 200;
+            if (echo)
+            {
+                return true;
+            }
 
             Log.Debug("focus: the shell tabbed into the page (" +
                       (request == null ? "no direction" : request.FocusNavigationDirection.ToString()) +
                       "); taking it without choosing an element.");
 
+            _lastTabInto = DateTime.UtcNow;
             Focus();
             FocusBrowser();
             return true;

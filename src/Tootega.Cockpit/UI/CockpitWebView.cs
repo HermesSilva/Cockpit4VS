@@ -31,10 +31,11 @@ namespace Tootega.Cockpit.UI
         /// </summary>
         private const string VirtualHost = "cockpit.invalid";
 
-        private readonly VsWebView2 _web;
+        private VsWebView2 _web;
         private readonly string _mode;
         private bool _ready;
         private bool _disposed;
+        private bool _reviving;
 
         /// <summary>Raised with the raw JSON a webview -&gt; host message carried.</summary>
         public event EventHandler<string> MessageReceived;
@@ -56,8 +57,109 @@ namespace Tootega.Cockpit.UI
             VSColorTheme.ThemeChanged += OnThemeChanged;
         }
 
+        /// <summary>
+        /// Replaces a browser that Visual Studio disposed under us with a fresh one, in place.
+        ///
+        /// Called only when <see cref="IsAlive"/> has already reported the old browser dead — the
+        /// close-with-the-X case. This is deliberately not a new <see cref="CockpitWebView"/>: the
+        /// pane's Content must not change, because re-assigning a sited tool window's Content does
+        /// not re-host it. So the outer control and its place in the frame stay, and only the inner
+        /// <see cref="VsWebView2"/> is swapped, then re-initialized exactly as on first open.
+        /// </summary>
+        public void ReviveIfStillDead()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (_disposed || _reviving) return;
+            if (IsAlive) return;
+
+            // Re-check on a later turn of the UI queue rather than now. Detaching the panel makes
+            // the browser read as dead for an instant while the shell re-parents it, then the shell
+            // brings it back; closing with the X leaves it dead for good. Waiting one turn tells the
+            // two apart, so only the real loss is rebuilt and the detach is left to recover itself.
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
+            {
+                await Task.Yield();
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                if (_disposed || _reviving || IsAlive) return;
+                Log.Info("The " + _mode + " browser stayed disposed after the window reappeared; reviving it.");
+                Revive();
+            }).FileAndForget("tootega/cockpit/reviveCheck");
+#pragma warning restore VSSDK007
+        }
+
+        private void Revive()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (_disposed || _reviving) return;
+
+            // Held until the new browser reports ready, so that IsAlive answers "alive" throughout
+            // the rebuild. Without it, every Show and every focus hand-off during the rebuild would
+            // see a not-yet-ready browser, call Revive again, and the repeated re-initialize is what
+            // seized the foreground and would not let another app take focus.
+            _reviving = true;
+
+            try
+            {
+                _web?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("Disposing the dead webview during revive failed: " + ex.Message);
+            }
+
+            _ready = false;
+            _web = new VsWebView2 { DefaultBackgroundColor = System.Drawing.Color.Transparent };
+            Content = _web;
+
+#pragma warning disable VSSDK007
+            ThreadHelper.JoinableTaskFactory.RunAsync(async delegate
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                try
+                {
+                    await InitializeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Reviving the " + _mode + " webview failed", ex);
+                }
+                finally
+                {
+                    _reviving = false;
+                }
+            }).FileAndForget("tootega/cockpit/reviveView");
+#pragma warning restore VSSDK007
+        }
+
         /// <summary>The tab this surface belongs to, or null for the hub.</summary>
         public string TabId { get; }
+
+        /// <summary>
+        /// Whether the underlying browser is still usable.
+        ///
+        /// Closing a tool window with its X does not dispose this control — no
+        /// <see cref="Dispose"/> runs — but Visual Studio disposes the WebView2 inside it all the
+        /// same, and that disposal is one-way. The control then survives as a live C# object
+        /// wrapping a dead browser, and reusing it paints nothing: the blank hub after a close and
+        /// reopen. The owner asks this before reusing the view, and rebuilds when the answer is no.
+        ///
+        /// Read by probing the control rather than tracked with a flag, because the disposal
+        /// happens inside WebView2 without raising an event this class sees. Touching a disposed
+        /// WebView2 throws <see cref="ObjectDisposedException"/>; that throw is the signal.
+        /// </summary>
+        public bool IsAlive
+        {
+            get
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                if (_disposed) return false;
+                // A rebuild in flight counts as alive: the browser is coming up, and asking for
+                // another rebuild on top of it is the loop that stole the foreground.
+                if (_reviving) return true;
+                return _web.IsAlive();
+            }
+        }
 
         /// <summary>Whether a message tagged with <paramref name="tabId"/> is for this surface.</summary>
         public bool Accepts(string tabId)

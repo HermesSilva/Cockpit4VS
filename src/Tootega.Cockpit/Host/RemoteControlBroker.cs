@@ -136,7 +136,7 @@ namespace Tootega.Cockpit.Host
         {
             if (!_active.TryGetValue(tabId, out var handover)) return;
 
-            var live = await _registry.IsSessionLiveAsync(handover.Ids);
+            var where = await _registry.LocateSessionAsync(handover.Ids);
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
@@ -145,7 +145,7 @@ namespace Tootega.Cockpit.Host
 
             _replay(tabId);
 
-            if (live)
+            if (where == SessionLocation.Local)
             {
                 if (handover.Phase != "active")
                 {
@@ -156,28 +156,52 @@ namespace Tootega.Cockpit.Host
                 return;
             }
 
-            // Still starting up, and never seen alive: keep waiting.
+            // A cloud/phone peer took the session over: it is running, just not in our console.
+            // Not a failure — keep following the transcript, only relabel so the composer stops
+            // saying "active" (which implies our console). It may come back local, or go offline.
+            if (where == SessionLocation.Cloud)
+            {
+                if (handover.Phase != "cloud")
+                {
+                    handover.Phase = "cloud";
+                    _post(HostMessages.RemoteState(true, "cloud"), tabId);
+                    _post(HostMessages.EngineNotice("remote-cloud:" + DateTime.UtcNow.Ticks,
+                        "Remote Control is running in the cloud: the session left this console and is being " +
+                        "driven from claude.ai/code or the phone. The timeline keeps following it.",
+                        "remote_control"), tabId);
+                }
+
+                return;
+            }
+
+            // Nobody owns it (offline). Still starting up, and never seen alive: keep waiting.
             var elapsed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - handover.StartedAt;
             if (handover.Phase == "connecting" && elapsed < ConnectWindowMs) return;
 
-            Fail(tabId, handover.Phase == "active"
-                ? "Remote Control dropped: the interactive session is no longer running. The conversation is " +
-                  "intact on disk — check the console for the reason, then click the button to reconnect."
+            // A handover that was live (local or cloud) and then went offline is the 2.1.229
+            // `offline` state: the connection dropped rather than never starting. Same recovery as
+            // a failure (console left open, button reconnects), named so the user knows which.
+            var wasUp = handover.Phase == "active" || handover.Phase == "cloud";
+            Fail(tabId, wasUp
+                ? "Remote Control is offline: the session dropped its connection and no one is running it now. " +
+                  "The conversation is intact on disk — check the console for the reason, then click the button " +
+                  "to reconnect."
                 : "Remote Control did not connect: the interactive session never started. The console is still " +
-                  "open with the reason (sign-in, network or a CLI error) — fix it and click the button again.");
+                  "open with the reason (sign-in, network or a CLI error) — fix it and click the button again.",
+                wasUp ? "offline" : "failed");
         }
 
         /// <summary>
         /// Failure: stop following, leave the console open — it holds the reason — and leave the
         /// tab ready for another attempt.
         /// </summary>
-        private void Fail(string tabId, string detail)
+        private void Fail(string tabId, string detail, string phase = "failed")
         {
             ThreadHelper.ThrowIfNotOnUIThread();
 
             Forget(tabId);
 
-            _post(HostMessages.RemoteState(false, "failed", detail), tabId);
+            _post(HostMessages.RemoteState(false, phase, detail), tabId);
             _post(HostMessages.EngineNotice("remote-fail:" + DateTime.UtcNow.Ticks, detail, "remote_control"), tabId);
             _replay(tabId);
         }

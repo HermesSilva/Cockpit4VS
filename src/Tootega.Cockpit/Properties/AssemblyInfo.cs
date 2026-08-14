@@ -12,5 +12,5 @@ using System.Runtime.InteropServices;
 // one language. Saying so spares the resource manager a probe for a satellite that will
 // never exist — the same declaration the VSSDK project template makes.
 [assembly: NeutralResourcesLanguage("en-US")]
-[assembly: AssemblyVersion("1.0.45.0")]
-[assembly: AssemblyFileVersion("1.0.45.0")]
+[assembly: AssemblyVersion("1.0.57.0")]
+[assembly: AssemblyFileVersion("1.0.57.0")]

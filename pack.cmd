@@ -16,6 +16,8 @@ rem    pack.cmd /debug          Debug instead of Release
 rem    pack.cmd /skiptests      skip the test run
 rem    pack.cmd /nobump         keep the current version
 rem    pack.cmd /minor          increment the minor instead of the build
+rem    pack.cmd /install        install/update the packed VSIX at the end
+rem    pack.cmd /noinstall      skip the install step (default)
 rem ===========================================================================
 
 setlocal EnableDelayedExpansion
@@ -25,6 +27,7 @@ set "CONFIG=Release"
 set "SKIP="
 set "BUMP=1"
 set "PART=Build"
+set "INSTALL="
 
 :parse
 if "%~1"=="" goto parsed
@@ -34,6 +37,8 @@ if /i "%~1"=="/skiptests" ( set "SKIP=-SkipTests"   & shift & goto parse )
 if /i "%~1"=="/nobump"    ( set "BUMP="             & shift & goto parse )
 if /i "%~1"=="/minor"     ( set "PART=Minor"        & shift & goto parse )
 if /i "%~1"=="/major"     ( set "PART=Major"        & shift & goto parse )
+if /i "%~1"=="/install"   ( set "INSTALL=1"         & shift & goto parse )
+if /i "%~1"=="/noinstall" ( set "INSTALL="          & shift & goto parse )
 if /i "%~1"=="/?"         goto usage
 echo Unknown option: %~1
 goto usage
@@ -99,15 +104,72 @@ echo.
 echo === Packed ===
 for %%f in ("%ROOT%Dist\Tootega.Cockpit.vsix") do echo   %%~ff  (%%~zf bytes^)
 if defined VER echo   %ROOT%Dist\Tootega.Cockpit-%VER%.vsix
+
+if not defined INSTALL (
+    echo.
+    echo Install with Visual Studio CLOSED:
+    echo   VSIXInstaller.exe "%ROOT%Dist\Tootega.Cockpit.vsix"
+    exit /b 0
+)
+
+rem VSIXInstaller lives beside devenv; vswhere locates the same instance build.ps1
+rem builds against, so the install lands where the extension was compiled for.
+set "VSIXINSTALLER="
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if not exist "%VSWHERE%" (
+    echo.
+    echo vswhere not found - is Visual Studio installed? The VSIX was packed but not installed.
+    exit /b 1
+)
+for /f "usebackq delims=" %%p in (`"%VSWHERE%" -prerelease -latest -property installationPath`) do set "VSPATH=%%p"
+if defined VSPATH set "VSIXINSTALLER=%VSPATH%\Common7\IDE\VSIXInstaller.exe"
+
+if not defined VSIXINSTALLER (
+    echo.
+    echo Could not find a Visual Studio installation. The VSIX was packed but not installed.
+    exit /b 1
+)
+if not exist "%VSIXINSTALLER%" (
+    echo.
+    echo VSIXInstaller.exe not found at "%VSIXINSTALLER%". The VSIX was packed but not installed.
+    exit /b 1
+)
+
+rem devenv holds a lock on installed extensions; installing while it runs fails with
+rem a file-in-use error, so refuse rather than leave a half-applied install.
+tasklist /fi "imagename eq devenv.exe" 2>nul | find /i "devenv.exe" >nul
+if not errorlevel 1 (
+    echo.
+    echo Visual Studio is running. Close every instance before installing, then rerun with /install.
+    exit /b 1
+)
+
 echo.
-echo Install with Visual Studio CLOSED:
-echo   VSIXInstaller.exe "%ROOT%Dist\Tootega.Cockpit.vsix"
+echo === Installing ===
+rem /q is silent; the installer updates in place when the same extension id is already
+rem present, so this both installs on a clean machine and updates on a repeat run.
+"%VSIXINSTALLER%" /q "%ROOT%Dist\Tootega.Cockpit.vsix"
+set "RC=%errorlevel%"
+
+rem 1001 = this exact version is already installed; that is a success for a repeat run.
+if "%RC%"=="1001" (
+    echo Already installed at this version - nothing to update.
+    exit /b 0
+)
+if not "%RC%"=="0" (
+    echo.
+    echo Install failed with code %RC%.
+    exit /b %RC%
+)
+
+echo Installed. Restart Visual Studio to load the new version.
 exit /b 0
 
 :usage
 echo.
-echo   pack.cmd [/debug ^| /release] [/skiptests] [/nobump] [/minor ^| /major]
+echo   pack.cmd [/debug ^| /release] [/skiptests] [/nobump] [/minor ^| /major] [/install]
 echo.
 echo   Increments the build number, builds the extension and copies the .vsix
-echo   into Dist\ under both a versioned and a stable name.
+echo   into Dist\ under both a versioned and a stable name. With /install it also
+echo   installs or updates the packed VSIX (Visual Studio must be closed).
 exit /b 1

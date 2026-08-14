@@ -9,6 +9,23 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.57 — 2026-08-14
+
+- **@-mention now reaches live sessions, not just files.** Typing `@` in the composer lists the
+  CLI's live named sessions first (read from `~/.claude/sessions`, the same registry Remote Control
+  uses), each with a distinct icon, then workspace files. Picking one inserts `@name`, which CLI
+  2.1.232 resolves as another session and delivers to via `SendMessage` on submit. The current
+  conversation is excluded. `mentionResults` now carries typed items (`{label, kind}`).
+- **Plan mode writes the plan to a file.** When the agent leaves plan mode (`ExitPlanMode`), the
+  host writes the plan to `Planing/<timestamp>-<slug>.md` at the repo root and opens it in the
+  editor, one file per plan. The approval card keeps only the gate plus a link to the file and an
+  optional notes box; it falls back to the previous inline editable markdown when no file can be
+  written. `Planing/` is git-ignored.
+- **Fixed: clicking a file on the timeline did nothing.** A file card sends a workspace-relative
+  path, which `EditorBridge.OpenExternal` refused as a non-web link. `EditorBridge.OpenLink` now
+  resolves the path (relative/absolute/by name, with a `#L` line anchor) and opens it in the
+  editor via `DTE.ItemOperations.OpenFile`.
+
 - **Quiet directive** (Tools > Options > Advanced): its text is injected at the very **start** of
   the CLI's appended system prompt, before the question-language rule and the custom system
   prompt — the agent stops narrating the execution and stops closing with a report or summary. It

@@ -56,6 +56,13 @@ namespace Tootega.Cockpit.Session
         /// <summary>Each tool_use before execution, so a dirty buffer can be flushed first.</summary>
         public Action<string, JsonElement?> OnToolUse { get; set; }
 
+        /// <summary>
+        /// Plan mode (ExitPlanMode): persist the proposed plan as a markdown file under Planing/
+        /// at the repo root and open it in the editor. Returns the workspace-relative path, or
+        /// null when nothing could be saved. The approval gate stays in the UI.
+        /// </summary>
+        public Func<string, string> SavePlan { get; set; }
+
         public Func<string, string> ClaudePath { get; set; }
         public Func<string> Cwd { get; set; }
         public Func<string> Engine { get; set; }

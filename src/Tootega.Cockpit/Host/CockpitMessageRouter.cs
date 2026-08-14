@@ -26,6 +26,10 @@ namespace Tootega.Cockpit.Host
 
         private readonly CockpitHostService _host;
 
+        // Backs the @-mention of live sessions (CLI 2.1.232): the same registry Remote Control
+        // reads, queried by name here so the composer can offer another session as a target.
+        private readonly SessionRegistry _registry = new SessionRegistry();
+
         public CockpitMessageRouter(CockpitHostService host)
         {
             _host = host ?? throw new ArgumentNullException(nameof(host));
@@ -268,7 +272,9 @@ namespace Tootega.Cockpit.Host
                     return;
 
                 case WebviewMessageKinds.OpenLink:
-                    _host.Editor.OpenExternal(message.GetString("href"));
+                    // A file card on the timeline sends a relative path here, not a URL; OpenLink
+                    // opens it in the editor (OpenExternal alone refused it silently).
+                    _host.Editor.OpenLink(message.GetString("href"), cwd);
                     return;
 
                 case WebviewMessageKinds.OpenEditor:
@@ -300,9 +306,10 @@ namespace Tootega.Cockpit.Host
                 case WebviewMessageKinds.MentionSearch:
                 {
                     var requestId = message.GetString("requestId");
-                    var matches = await _host.Editor.SearchFilesAsync(message.GetString("query"), cwd);
+                    var query = message.GetString("query");
+                    var items = await BuildMentionsAsync(query, cwd, session);
                     await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                    _host.Post(HostMessages.MentionResults(requestId, matches), tabId);
+                    _host.Post(HostMessages.MentionResults(requestId, items), tabId);
                     return;
                 }
 
@@ -659,6 +666,52 @@ namespace Tootega.Cockpit.Host
         {
             if (paths == null) return string.Empty;
             return string.Join(" ", System.Linq.Enumerable.Select(paths, p => _host.Editor.QuoteResolved(p, cwd)));
+        }
+
+        /// <summary>
+        /// The @-mention autocomplete list: live sessions first (by name), then workspace files.
+        /// Mirrors the base extension's searchMentions. Sessions come first because they are few
+        /// and more specific than the file sweep, and are what the CLI 2.1.232 resolves as
+        /// `@name` -> SendMessage. The current conversation is excluded — mentioning itself is
+        /// meaningless. Runs off the UI thread (registry + file walk are both background work).
+        /// </summary>
+        private async Task<IReadOnlyList<MentionItem>> BuildMentionsAsync(string query, string cwd, CockpitSession self)
+        {
+            var items = new List<MentionItem>();
+
+            // Live named sessions matching the query, minus this conversation's own ids.
+            try
+            {
+                var selfIds = new HashSet<string>(StringComparer.Ordinal);
+                if (!string.IsNullOrEmpty(self?.SessionId)) selfIds.Add(self.SessionId);
+                if (!string.IsNullOrEmpty(self?.ResumeId)) selfIds.Add(self.ResumeId);
+
+                var q = query?.Trim() ?? string.Empty;
+                var sessions = await _registry.LiveSessionsAsync().ConfigureAwait(false);
+                items.AddRange(sessions
+                    .Where(s => !string.IsNullOrEmpty(s.Name) && !selfIds.Contains(s.SessionId))
+                    .Where(s => q.Length == 0 || s.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0)
+                    .OrderBy(s => s.Name.Length)
+                    .Select(s => new MentionItem { Label = s.Name, Kind = "session" }));
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("mention: session lookup failed: " + ex.Message);
+            }
+
+            // Workspace files (fuzzy by name), reusing the existing search.
+            try
+            {
+                var files = await _host.Editor.SearchFilesAsync(query, cwd).ConfigureAwait(false);
+                items.AddRange(files.Select(f => new MentionItem { Label = f, Kind = "file" }));
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("mention: file search failed: " + ex.Message);
+            }
+
+            // The webview shows 12; cap here so the session rows can never be pushed off by files.
+            return items.Count > 12 ? items.GetRange(0, 12) : items;
         }
     }
 }

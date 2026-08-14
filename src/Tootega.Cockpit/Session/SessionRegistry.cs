@@ -9,6 +9,21 @@ using Tootega.Cockpit.Protocol;
 
 namespace Tootega.Cockpit.Session
 {
+    /// <summary>
+    /// Where a handed-over conversation is running now, as far as this machine can tell. Mirrors
+    /// the CLI's 2.1.229 Remote Control labels: a cloud/phone peer (<see cref="Cloud"/>) versus a
+    /// dropped connection (<see cref="Offline"/>).
+    /// </summary>
+    internal enum SessionLocation
+    {
+        /// <summary>A live interactive process on this machine owns it (the terminal we spawned).</summary>
+        Local,
+        /// <summary>A live non-interactive peer is driving it — cloud or phone.</summary>
+        Cloud,
+        /// <summary>Nobody is running it: the connection dropped. Transcript intact on disk.</summary>
+        Offline,
+    }
+
     /// <summary>One entry of the CLI's live-session registry.</summary>
     internal sealed class LiveSession
     {
@@ -94,20 +109,54 @@ namespace Tootega.Cockpit.Session
         /// </summary>
         public async Task<bool> IsSessionLiveAsync(params string[] ids)
         {
+            return await LocateSessionAsync(ids).ConfigureAwait(false) == SessionLocation.Local;
+        }
+
+        /// <summary>
+        /// Where a handed-over conversation is running now, as far as this machine can tell.
+        ///
+        ///  - <see cref="SessionLocation.Local"/>: a process on THIS machine owns it (pid alive,
+        ///    kind interactive) — the Remote Control terminal we spawned. The handover is active.
+        ///  - <see cref="SessionLocation.Cloud"/>: the CLI registered the session with a live
+        ///    non-interactive entry — a cloud or phone peer is driving it (the 2.1.229 `cloud`
+        ///    label). No local pid owns it.
+        ///  - <see cref="SessionLocation.Offline"/>: nobody is running it — the pid died and left
+        ///    no other owner (the 2.1.229 `offline` label). The transcript is intact on disk.
+        ///
+        /// Derived, not read from a field: the local registry file carries only pid/kind/version,
+        /// so `cloud` is inferred from a live entry whose kind is not `interactive`. Version-
+        /// tolerant — an unknown kind on a live entry is treated as `cloud`, never as a failure.
+        /// </summary>
+        public async Task<SessionLocation> LocateSessionAsync(params string[] ids)
+        {
             var wanted = new HashSet<string>(StringComparer.Ordinal);
             foreach (var id in ids ?? Array.Empty<string>())
             {
                 if (!string.IsNullOrEmpty(id)) wanted.Add(id);
             }
-            if (wanted.Count == 0) return false;
+            if (wanted.Count == 0) return SessionLocation.Offline;
 
+            var cloud = false;
             foreach (var session in await LiveSessionsAsync().ConfigureAwait(false))
             {
                 if (!wanted.Contains(session.SessionId)) continue;
-                if (IsPidAlive(session.Pid)) return true;
+                if (!IsPidAlive(session.Pid)) continue;
+
+                // A live entry is `cloud` ONLY when the CLI explicitly tags it with a kind other
+                // than interactive. A missing/empty kind stays local: older CLIs and the default
+                // headless case do not tag it, and reading "no kind" as cloud would misreport
+                // every ordinary handover (and regress IsSessionLive, which pre-dates cloud).
+                if (!string.IsNullOrEmpty(session.Kind) &&
+                    !string.Equals(session.Kind, "interactive", StringComparison.Ordinal))
+                {
+                    cloud = true; // a live entry the CLI does not call interactive: driven elsewhere
+                    continue;
+                }
+
+                return SessionLocation.Local;
             }
 
-            return false;
+            return cloud ? SessionLocation.Cloud : SessionLocation.Offline;
         }
 
         /// <summary>

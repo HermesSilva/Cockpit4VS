@@ -29,6 +29,17 @@ namespace Tootega.Cockpit.Protocol
         public long Tokens { get; set; }
     }
 
+    /// <summary>
+    /// One @-mention autocomplete item. Port of MentionItem in shared/protocol.ts. `Label` is what
+    /// gets inserted after the '@'; `Kind` is "file" (a workspace path) or "session" (a live
+    /// session the CLI resolves as a SendMessage target, CLI 2.1.232) — it only drives the icon.
+    /// </summary>
+    internal sealed class MentionItem
+    {
+        public string Label { get; set; }
+        public string Kind { get; set; }
+    }
+
     internal sealed class LimitsBlock
     {
         public LimitWindow FiveHour { get; set; }
