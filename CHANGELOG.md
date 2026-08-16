@@ -9,6 +9,25 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.58 — 2026-08-16
+
+- **Fixed: closing a conversation's tab no longer stops the agent.** A tool window's teardown
+  used to drop its tab and dispose the session, so closing the window with its X — or a layout
+  change that tears the frame down — killed the running CLI mid-turn. It now only discards the
+  webview; the conversation keeps running headless and stays in the hub, which reopens it onto
+  the same live session. Only the deliberate route (the hub's close button / the `closeTab`
+  message) stops the process, matching the VS Code base, where closing a `WebviewPanel` never
+  ended the session.
+- **Ask questions recover flattened Unicode.** The model occasionally emits a tool_use input with
+  the escape flattened (`u00f3` instead of `ó`), which is valid JSON, so `JSON.parse` cannot fix
+  it and an `AskUserQuestion` header/option showed up as `su00f3` for `só`. The Ask card and modal
+  now repair it on display via `decodeFlattenedUnicode`, restricted to an orphan `uXXXX` in the
+  Latin/punctuation ranges the model actually flattens — a real `\uXXXX` and tokens like `u0000`
+  are left untouched.
+- **Sending from the local composer takes back Remote Control.** Typing and sending while a remote
+  device drives the conversation now turns Remote Control off first, so the wheel returns to the
+  desktop instead of the two inputs fighting.
+
 ## 1.0.57 — 2026-08-14
 
 - **@-mention now reaches live sessions, not just files.** Typing `@` in the composer lists the

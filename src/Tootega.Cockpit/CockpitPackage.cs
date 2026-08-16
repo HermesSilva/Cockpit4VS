@@ -222,6 +222,11 @@ namespace Tootega.Cockpit
             var window = FindConversationWindow(tabId);
             if (window?.Frame == null) return;
 
+            // This is the deliberate route (the hub's close button / the closeTab message): the
+            // conversation is meant to end, so the frame's teardown should stop the CLI process.
+            // A plain window close does not come through here and leaves the session running.
+            window.MarkConversationClosing();
+
             var frame = (Microsoft.VisualStudio.Shell.Interop.IVsWindowFrame)window.Frame;
             frame.CloseFrame((uint)Microsoft.VisualStudio.Shell.Interop.__FRAMECLOSE.FRAMECLOSE_NoSave);
         }

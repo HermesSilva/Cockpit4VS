@@ -111,8 +111,10 @@ namespace Tootega.Cockpit.Tests
             {
                 var only = tabs.CreateTab(_folderA);
 
-                // A conversation IS its window here, so closing that window leaves nothing to
-                // keep an empty tab for — the transcript is still on disk either way.
+                // Deliberately ending the conversation (the hub's close button) drops even the
+                // last tab — there is nothing to keep an empty tab for, and the transcript is
+                // still on disk. (Merely closing the window does not reach Drop; the session
+                // stays alive for the hub to reopen.)
                 Assert.True(tabs.Drop(only));
 
                 Assert.Equal(0, tabs.Count);

@@ -213,8 +213,9 @@ namespace Tootega.Cockpit.Host
                     return;
 
                 case WebviewMessageKinds.CloseTab:
-                    // Closing the window is what closes the conversation; the window's own
-                    // teardown then drops the tab, so there is one path for both routes.
+                    // The deliberate "close conversation" route: it closes the window AND stops
+                    // the CLI process. Merely closing the window (its X, a layout change) does not
+                    // come through here and leaves the conversation running for the hub to reopen.
                     _host.CloseConversation(message.GetString("tabId") ?? tabId);
                     return;
 

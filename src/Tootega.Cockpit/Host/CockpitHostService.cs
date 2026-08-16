@@ -620,11 +620,14 @@ namespace Tootega.Cockpit.Host
         }
 
         /// <summary>
-        /// Drops a tab because its window is gone.
+        /// Drops a tab and stops its CLI process because the user deliberately ended the
+        /// conversation.
         ///
-        /// Called from the window's teardown, which is the only place that knows it happened —
-        /// the user can close a window from its own close button, the tab strip, or by closing
-        /// the whole IDE layout.
+        /// Reached only on the intentional route — the hub's close button / the <c>closeTab</c>
+        /// message — either directly when the conversation has no open window, or from the
+        /// window's teardown once <see cref="UI.CockpitToolWindowBase.MarkConversationClosing"/>
+        /// has flagged it. Simply closing the window (its X, a layout change, IDE shutdown) does
+        /// NOT come here: the conversation stays alive and the hub keeps listing it.
         /// </summary>
         public void CloseTabFromWindow(string tabId)
         {

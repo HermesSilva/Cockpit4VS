@@ -18,6 +18,7 @@ namespace Tootega.Cockpit.UI
     {
         private CockpitWebView _view;
         private bool _tabAcquired;
+        private bool _closingConversation;
 
         protected CockpitToolWindowBase(string caption, string mode)
         {
@@ -170,6 +171,18 @@ namespace Tootega.Cockpit.UI
             _view?.Reload();
         }
 
+        /// <summary>
+        /// Marks that the frame is about to close BECAUSE the user is ending this conversation
+        /// (the hub's close button / the <c>closeTab</c> message), not merely putting the window
+        /// away. Only then does <see cref="Dispose"/> stop the CLI process.
+        ///
+        /// Closing the window by its X, dragging it out of the layout, or shutting the IDE down
+        /// leaves this false: the conversation keeps running headless and the hub keeps listing
+        /// it, exactly as closing a WebviewPanel does in the VS Code base — there, panel disposal
+        /// only drops the UI and remembers the tab as reopenable; it never kills the session.
+        /// </summary>
+        public void MarkConversationClosing() => _closingConversation = true;
+
         protected override void OnCreate()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -178,11 +191,17 @@ namespace Tootega.Cockpit.UI
         }
 
         /// <summary>
-        /// Closing the window closes the conversation, as closing the panel did in VS Code.
+        /// Tearing the window down drops only the webview, NOT the conversation.
         ///
-        /// Nothing is lost: the transcript is on disk and the hub still lists it. What goes away
-        /// is the live process, which is the point — an invisible conversation holding a CLI
-        /// open is exactly what the user meant to stop.
+        /// Closing a WebviewPanel in the VS Code base does not stop the agent: its
+        /// <c>onDidDispose</c> just clears the UI records and remembers the tab as reopenable —
+        /// the CLI process keeps running and the hub keeps listing it. The port must match that.
+        /// A window closed by its X, dragged out of the layout, or torn down when the IDE shuts
+        /// leaves the session alive; only an explicit "close conversation" — which sets
+        /// <see cref="MarkConversationClosing"/> before closing the frame — stops the process.
+        ///
+        /// Nothing is lost either way: the transcript is on disk and the tab stays in the hub,
+        /// so a window closed by accident is reopened from there onto the same live conversation.
         /// </summary>
         protected override void Dispose(bool disposing)
         {
@@ -194,7 +213,10 @@ namespace Tootega.Cockpit.UI
                 _view?.Dispose();
                 _view = null;
 
-                if (TabId != null)
+                // The tab (and its CLI process) is only stopped on a deliberate close. Otherwise
+                // it outlives the window: EnsureView reacquires it via the pending-tab handshake
+                // when the shell reuses this pane, and ShowConversation reopens it from the hub.
+                if (_closingConversation && TabId != null)
                 {
                     host?.CloseTabFromWindow(TabId);
                     TabId = null;
