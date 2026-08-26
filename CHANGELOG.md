@@ -9,6 +9,20 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.59 — 2026-08-26
+
+- **Fixed: Markdown export now carries the whole conversation, following the timeline's expand
+  state.** The direct export dropped every tool card and ignored whether the timeline was
+  expanded, so a document could come out with the questions and answers but none of the work
+  between them. `buildConversationMd` (`webview/src/util/exportMd.ts`) now takes the same
+  `showThinking` / `expandTools` flags the timeline receives: reasoning and tool cards export
+  open (input and result in fenced blocks) when the UI shows them open, and collapse to a
+  one-line header otherwise. User and assistant turns are always included.
+- **Curated slash-command hints for the current CLI surface.** `slashCatalog.ts` gained `/fork`,
+  `/theme`, `/cd`, `/goal`, `/loop`, `/workflows`, `/web-setup`, `/stats`, `/insights` and
+  `/tasks` (with categories and descriptions), so they show a friendly hint in the autocomplete
+  instead of falling into "Other". Commands outside the catalog still work.
+
 ## 1.0.58 — 2026-08-16
 
 - **Fixed: closing a conversation's tab no longer stops the agent.** A tool window's teardown
