@@ -45,12 +45,24 @@ per run or keep it in `VS_MARKETPLACE_PAT`.
 
 The listing has none yet, on purpose: the only screenshots in the family were taken in VS
 Code, and showing VS Code chrome to sell a Visual Studio extension would misrepresent it.
+That reasoning still stands — what changed is only *where the images live* when there are
+some to show.
 
-To add them, put the images in `marketplace/images/`, reference them from `overview.md` with
-a relative path, and declare each one in `publishManifest.json`:
+**The image folder is shared, and it lives in the base repo:
+`Cockpit/images/`.** There is one copy of each screenshot for the whole family; this repo
+does not keep its own. Markdown here references them by absolute URL:
 
-```json
-"assetFiles": [
-  { "pathOnDisk": "images/hub.png", "targetPath": "images/hub.png" }
-]
+```markdown
+![Hub](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Hub.png)
 ```
+
+A relative path cannot work — the file is in a sibling repository, so it resolves to
+nothing on GitHub and nothing on the Marketplace. The absolute URL renders in both.
+
+When Visual Studio screenshots exist, add them to `Cockpit/images/` with a name that marks
+the host (e.g. `Main Panel VS.png`), so the two sets never get confused, and reference them
+from `overview.md` by absolute URL as above.
+
+`publishManifest.json` `assetFiles` is **not** a route for this: `pathOnDisk` is resolved
+inside this repository, so it cannot reach the base repo's folder. Use it only for assets
+that genuinely live here.
