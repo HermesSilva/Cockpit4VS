@@ -81,9 +81,28 @@ permission modes including plan mode with an editable plan, composed questions
 Visual Studio diff viewer, `@`-mentions with fuzzy file completion, and sharing the current
 editor selection as a chip on the composer.
 
-**Transparency.** Live context window and cache life, token and cost accounting per session,
-turn and compaction counts, and — opt-in — a local OpenTelemetry receiver that aggregates
-what the CLI reports.
+**Transparency.** This is where the Cockpit earns its name, and most of it has no
+equivalent in other Claude Code front-ends:
+
+- **The prompt cache as something you manage.** Hit rate, read and write volumes, an
+  **estimated savings** figure (what the cache-read tokens would have cost at the full input
+  rate), and a **cache life** countdown over the 1 h TTL. Opt in to **keep cache alive** and
+  the host re-arms that TTL before it lapses with a minimal headless turn — so stepping away
+  from a large session doesn't mean paying a full cache re-write on the next prompt.
+- **Where the context went.** Context injected per tool, ranked by tokens with call counts,
+  MCP servers grouped — so a window that fills faster than expected names its own culprit.
+- **A counter that outlives the session.** All-time tokens sent, received and total across
+  every project on this machine, with a per-day history, built from an incremental rollup of
+  the CLI's transcripts.
+- **Session activity.** Duration, turn count, and **peak** context — the high-water mark,
+  not just the current reading, so the spike that triggered compaction stays visible.
+- Subscription limits (session, weekly, per-model) read from the same OAuth `/usage` API the
+  CLI itself uses, plus — opt-in — a local OpenTelemetry receiver that aggregates what the
+  CLI reports.
+
+The USD figures are the equivalent API price computed locally and are labelled as estimates;
+on a subscription you are not charged them. Transcript-derived figures cover this machine
+only.
 
 **Writing aid.** An inline spell-checker (Hunspell, pt-BR + EN, flags only what is wrong in
 both) that marks and never auto-corrects, a suggestions dropdown, voice dictation with live
