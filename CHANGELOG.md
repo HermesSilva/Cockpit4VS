@@ -9,6 +9,29 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.60 — 2026-09-08
+
+- **Curated hints for the slash commands the CLI added through 2.1.265.** `slashCatalog.ts`
+  gained `/diff` (2.1.260), `/advisor` (2.1.260), `/reload-plugins` (2.1.260) and
+  `/skill-doctor` (2.1.261), with categories and descriptions. These already worked —
+  uncatalogued commands fall through to "Other" and get an AI-researched description — so
+  this only replaces that fallback with a curated label.
+- **Fixed: the slash-research built-in list had drifted from the catalog.**
+  `SlashCommandResearch`'s `BuiltIn` set exists so commands the webview already documents
+  don't spend an AI round-trip on a description. It had not been updated when the catalog
+  grew in 1.0.59, so `/fork`, `/theme`, `/cd`, `/goal`, `/loop`, `/workflows`, `/web-setup`,
+  `/stats`, `/insights` and `/tasks` were each researched once despite the hint already
+  being on hand. Now synced with the catalog, including the four new commands.
+- **Documentation: the Transparency section now covers what the port actually ships.** It
+  had been compressed to one sentence, which undersold it — estimated cache savings, the
+  opt-in keep-alive that re-arms the 1 h TTL, context injected per tool, the all-time
+  machine-wide token counter, and peak context alongside duration and turn count all exist
+  here (`CacheKeeper`, `DailyTokensCounter`, `UsageAggregator.ByTool`, `StatsAggregator`).
+- **Documentation: the shared screenshot folder is written down.** Images for the family
+  live in the base repo's `images/` and are referenced by absolute URL; this repo keeps
+  none. Records why `publishManifest.json` `assetFiles` cannot serve that purpose, and why
+  the listing still ships without screenshots.
+
 ## 1.0.59 — 2026-08-26
 
 - **Fixed: Markdown export now carries the whole conversation, following the timeline's expand
