@@ -159,6 +159,24 @@ The extension runs `claude` through `cmd.exe /s /c`, so it uses your `PATH` as a
   Credential Manager. To see or remove it by hand: **Control Panel > Credential Manager >
   Windows Credentials**, entry `Tootega.Cockpit`.
 
+## The session list is empty, or every tab shows "0 msgs"
+
+Fixed in **1.0.61**. If you are on an older build and the project's path contains a space or
+an accent — `F:\Estudo Cobol`, `D:\Projetos\São Paulo` — update the extension.
+
+The transcripts live in `%USERPROFILE%\.claude\projects\<encoded-cwd>\`, where the CLI
+builds the folder name by replacing every non-alphanumeric character with `-`. Older builds
+replaced only `:` `\` and `/`, so a path with a space pointed at a folder that never
+existed: the lookup found nothing and reported it as "this project has no history" rather
+than as "we looked in the wrong place".
+
+To confirm which folder the CLI is actually using, list them and look for the one matching
+your path:
+
+```powershell
+Get-ChildItem "$env:USERPROFILE\.claude\projects" -Directory | Select-Object Name
+```
+
 ## The panel is blank
 
 The webview loaded nothing. In order:

@@ -9,6 +9,22 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.61 — 2026-09-08
+
+- **Fixed: sessions were invisible for any project whose path contains a space or an accent.**
+  `EncodeCwd` replaced only `:` `\` and `/`, but the CLI replaces *every* non-alphanumeric
+  character when it names the folders under `~/.claude/projects`. A cwd like
+  `F:\Estudo Cobol` was therefore encoded to a folder that never existed, so `ListSessions`
+  came back empty and every live tab showed "0 msgs" — it looked like the project had no
+  history rather than like the extension was reading the wrong folder. Every non-alphanumeric
+  character now collapses to a single `-`, never merged, matching the real folder names.
+- **Fixed: session lookup tolerates the drive letter's case.** Visual Studio hands the cwd as
+  `F:\` or `f:\` interchangeably and the CLI keeps whichever case it saw first, so an
+  exact-match lookup could still miss. `ProjectDirectory` now falls back to a case-insensitive
+  scan — a no-op on Windows, and the real fix on a case-sensitive filesystem. The path's own
+  casing is deliberately preserved: lowercasing it would have been the shorter fix but breaks
+  `CrediSIS` and `Cockpit`.
+
 ## 1.0.60 — 2026-09-08
 
 - **Curated hints for the slash commands the CLI added through 2.1.265.** `slashCatalog.ts`
