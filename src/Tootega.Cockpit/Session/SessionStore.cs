@@ -39,16 +39,56 @@ namespace Tootega.Cockpit.Session
             _projectsRoot = projectsRoot ?? ClaudeHome.ProjectsDir;
         }
 
-        /// <summary>Encodes the cwd the way Claude Code names its folders: ':' '\' '/' become '-'.</summary>
+        /// <summary>
+        /// Encodes the cwd the way Claude Code names its folders: EVERY non-alphanumeric
+        /// character becomes '-' (spaces, parentheses, dots, accents - anything Windows allows
+        /// in a path - each collapsing to a single '-', never merged). The casing of the rest of
+        /// the path is PRESERVED, matching the folders the CLI actually creates
+        /// (e.g. <c>d:\Tootega\Source\Cockpit</c> -> <c>d--Tootega-Source-Cockpit</c>).
+        /// <para>
+        /// An earlier version handled only ':' '\' '/', so a path containing a space
+        /// (e.g. <c>F:\Estudo Cobol</c>) pointed at a folder that never existed - sessions
+        /// listed empty and every live tab showed "0 msgs".
+        /// </para>
+        /// <para>
+        /// Windows drive-letter case is ambiguous and the CLI keeps whatever case it first saw,
+        /// so we do NOT lowercase (that would break <c>CrediSIS</c>). <see cref="ProjectDirectory"/>
+        /// tolerates the drive-letter case when resolving the folder instead.
+        /// </para>
+        /// </summary>
         public static string EncodeCwd(string cwd)
         {
             if (string.IsNullOrEmpty(cwd)) return string.Empty;
             var sb = new StringBuilder(cwd.Length);
-            foreach (var c in cwd) sb.Append(c == ':' || c == '\\' || c == '/' ? '-' : c);
+            foreach (var c in cwd)
+            {
+                var keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+                sb.Append(keep ? c : '-');
+            }
             return sb.ToString();
         }
 
-        public string ProjectDirectory(string cwd) => Path.Combine(_projectsRoot, EncodeCwd(cwd));
+        /// <summary>
+        /// The folder holding this cwd's transcripts. Falls back to a case-insensitive match so an
+        /// ambiguous drive letter (<c>F:\</c> vs <c>f:\</c>) still resolves to the CLI's folder.
+        /// </summary>
+        public string ProjectDirectory(string cwd)
+        {
+            var encoded = EncodeCwd(cwd);
+            var direct = Path.Combine(_projectsRoot, encoded);
+            if (Directory.Exists(direct)) return direct;
+            try
+            {
+                foreach (var dir in Directory.GetDirectories(_projectsRoot))
+                {
+                    if (string.Equals(Path.GetFileName(dir), encoded, StringComparison.OrdinalIgnoreCase))
+                        return dir;
+                }
+            }
+            catch (IOException) { /* root missing or unreadable: use the encoded path */ }
+            catch (UnauthorizedAccessException) { /* idem */ }
+            return direct;
+        }
 
         private string TranscriptPath(string cwd, string sessionId) =>
             Path.Combine(ProjectDirectory(cwd), sessionId + ".jsonl");

@@ -63,12 +63,44 @@ namespace Tootega.Cockpit.Tests
         [InlineData("/home/user/project", "-home-user-project")]
         [InlineData(@"C:\a", "C--a")]
         [InlineData("", "")]
+        // Regression: a cwd with a SPACE encoded to a folder that never existed, so
+        // ListSessions returned nothing and every live tab showed "0 msgs". EVERY
+        // non-alphanumeric character collapses to a single '-', never merged.
+        [InlineData(@"f:\Estudo Cobol", "f--Estudo-Cobol")]
+        [InlineData(@"F:\Estudo Cobol", "F--Estudo-Cobol")]
+        // Casing is preserved: lowercasing would break CrediSIS and Cockpit.
+        [InlineData(@"d:\CrediSIS\Source\ERP", "d--CrediSIS-Source-ERP")]
+        // Accents, parentheses and dots go the same way.
+        [InlineData(@"C:\Proj (v2)\São Paulo.bak", "C--Proj--v2--S-o-Paulo-bak")]
+        [InlineData(@"d:\Tootega\Source\DASE50", "d--Tootega-Source-DASE50")]
         public void EncodesCwdTheWayTheCliNamesFolders(string cwd, string expected)
         {
             // This is the CLI's convention, and getting it wrong means finding no sessions
             // at all — which looks like "there are none" rather than "we looked in the
             // wrong place".
             Assert.Equal(expected, SessionStore.EncodeCwd(cwd));
+        }
+
+        [Fact]
+        public void FindsTheProjectFolderWhenOnlyTheDriveLetterCaseDiffers()
+        {
+            // VS hands the cwd as "F:\..." or "f:\..." interchangeably, and the CLI keeps
+            // whatever case it first saw. Looking only for an exact match reported the project
+            // as having no sessions at all.
+            //
+            // On Windows the resolution is already case-insensitive, so the assertion is that
+            // the folder RESOLVES either way -- not that the returned string matches the one on
+            // disk byte for byte. The explicit scan matters on a case-sensitive filesystem.
+            var onDisk = Path.Combine(_root, "f--Estudo-Cobol");
+            Directory.CreateDirectory(onDisk);
+            File.WriteAllText(Path.Combine(onDisk, "s1.jsonl"), string.Empty);
+
+            foreach (var cwd in new[] { @"f:\Estudo Cobol", @"F:\Estudo Cobol" })
+            {
+                var resolved = _store.ProjectDirectory(cwd);
+                Assert.True(Directory.Exists(resolved), cwd + " did not resolve to an existing folder");
+                Assert.True(File.Exists(Path.Combine(resolved, "s1.jsonl")), cwd + " resolved to the wrong folder");
+            }
         }
 
         // --- Listing ---
