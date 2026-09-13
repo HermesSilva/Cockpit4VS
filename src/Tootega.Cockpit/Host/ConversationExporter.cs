@@ -13,8 +13,9 @@ namespace Tootega.Cockpit.Host
     /// Writes a conversation out as a document, and saves pasted images.
     ///
     /// Two modes, and the difference is worth being explicit about: 'direct' writes the
-    /// mechanical transcript the webview already assembled, and costs nothing; 'ai' has the
-    /// model rewrite it into a readable document, and spends subscription tokens. The second
+    /// self-contained HTML snapshot the webview captured from the rendered timeline — the
+    /// conversation as it looks on screen — and costs nothing; 'ai' has the model rewrite the
+    /// transcript into a readable Markdown document, and spends subscription tokens. The second
     /// runs in a separate one-shot process so the conversation's own context is untouched.
     /// </summary>
     internal sealed class ConversationExporter
@@ -51,13 +52,13 @@ namespace Tootega.Cockpit.Host
         /// <summary>
         /// Exports the conversation into the folder it runs in and opens the result.
         /// </summary>
-        /// <param name="mode">direct writes the transcript; ai rewrites it, spending tokens.</param>
-        public async Task ExportAsync(string cwd, string markdown, string fileName, string mode,
+        /// <param name="mode">direct writes the HTML snapshot; ai rewrites it, spending tokens.</param>
+        public async Task ExportAsync(string cwd, string markdown, string html, string fileName, string mode,
                                       string model, string effort)
         {
             try
             {
-                var content = markdown;
+                string content;
 
                 if (string.Equals(mode, "ai", StringComparison.Ordinal))
                 {
@@ -70,8 +71,24 @@ namespace Tootega.Cockpit.Host
 
                     content = generated;
                 }
+                else
+                {
+                    // The snapshot is built in the webview — only there is the rendered DOM. With
+                    // nothing to write, stop: falling back to the markdown would hand the user a
+                    // different format than the one they asked for, without saying so.
+                    if (string.IsNullOrEmpty(html))
+                    {
+                        Log.Info("The timeline could not be captured. The conversation was not exported.");
+                        return;
+                    }
 
-                var target = UniquePath(Path.Combine(cwd, SafeName(fileName)));
+                    content = html;
+                }
+
+                var fallback = string.Equals(mode, "ai", StringComparison.Ordinal)
+                    ? "conversation.md"
+                    : "conversation.html";
+                var target = UniquePath(Path.Combine(cwd, SafeName(fileName, fallback)));
                 File.WriteAllText(target, content, new UTF8Encoding(false));
 
                 await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -229,13 +246,13 @@ namespace Tootega.Cockpit.Host
         }
 
         /// <summary>A name that cannot escape the folder or carry characters the file system rejects.</summary>
-        private static string SafeName(string fileName)
+        private static string SafeName(string fileName, string fallback)
         {
-            var name = string.IsNullOrWhiteSpace(fileName) ? "conversation.md" : Path.GetFileName(fileName.Trim());
+            var name = string.IsNullOrWhiteSpace(fileName) ? fallback : Path.GetFileName(fileName.Trim());
 
             foreach (var invalid in Path.GetInvalidFileNameChars()) name = name.Replace(invalid, '-');
 
-            return string.IsNullOrWhiteSpace(name) ? "conversation.md" : name;
+            return string.IsNullOrWhiteSpace(name) ? fallback : name;
         }
 
         /// <summary>

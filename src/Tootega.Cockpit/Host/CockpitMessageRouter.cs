@@ -400,8 +400,8 @@ namespace Tootega.Cockpit.Host
                 case WebviewMessageKinds.ExportMd:
                 {
                     var payload = message.As<ExportMdPayload>();
-                    await _host.Exporter.ExportAsync(cwd, payload.Markdown, payload.FileName, payload.Mode,
-                                                     session.Model(), session.Effort());
+                    await _host.Exporter.ExportAsync(cwd, payload.Markdown, payload.Html, payload.FileName,
+                                                     payload.Mode, session.Model(), session.Effort());
                     return;
                 }
 

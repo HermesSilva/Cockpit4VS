@@ -237,9 +237,12 @@ namespace Tootega.Cockpit.Protocol
 
     internal sealed class ExportMdPayload
     {
+        /// <summary>Source for the ai mode: the mechanical transcript the webview assembled.</summary>
         public string Markdown { get; set; }
+        /// <summary>The direct mode's payload: the self-contained timeline snapshot.</summary>
+        public string Html { get; set; }
         public string FileName { get; set; }
-        /// <summary>direct = already-built markdown; ai = rewritten via the CLI (spends tokens).</summary>
+        /// <summary>direct = the already-built HTML snapshot; ai = rewritten via the CLI (spends tokens).</summary>
         public string Mode { get; set; }
     }
 

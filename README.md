@@ -72,8 +72,9 @@ process, so two conversations never share state.
 
 **Conversation.** Token-by-token streaming, thinking blocks, a tool-call timeline with a
 card per tool, markdown with syntax highlighting and a line-number gutter, find in
-conversation, export to Markdown, a scroll-marker rail with one mark per prompt, and a
-verbosity filter that changes what you see without changing what the agent does.
+conversation, export to a self-contained HTML file, a scroll-marker rail with one mark per
+prompt, and a verbosity filter that changes what you see without changing what the agent
+does.
 
 **Human control.** Permission approval with a per-tool preview (Allow / Always / Deny),
 permission modes including plan mode with an editable plan, composed questions
