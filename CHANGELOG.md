@@ -9,6 +9,24 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.64 — 2026-09-16
+
+- **Fixed: the exported HTML was missing the content of every collapsed tool card.** The
+  snapshot is captured from the live DOM, and the timeline only mounts a card's body while
+  the card is open — so a `Read`, `Grep` or `Write` the user had not expanded was written out
+  as a header with nothing behind it. Not hidden: absent. The export now expands every card
+  for the duration of the capture and restores the user's own view afterwards, so the whole
+  conversation reaches the file regardless of what was open on screen.
+- **Fixed: tool cards can be opened again in the exported file.** They used to be frozen at
+  whatever state the panel was in, because the header was a `<button>` whose handler could not
+  survive serialisation. Each card — and each thinking block — is now rewritten as a native
+  `<details>`/`<summary>`, so the reader expands and collapses them in any browser with no
+  JavaScript. They are written out closed: a document that opens with every tool call
+  unrolled is unreadable. A card with no body (a tool still running) is left alone rather
+  than turned into a chevron that reveals nothing.
+- The card bodies lost the `max-height: 50vh` inner scrollbar in the export. It earns its
+  place in a fixed-height panel and hides content in a document that scrolls with the page.
+
 ## 1.0.62 — 2026-09-13
 
 - **Changed: the direct export writes an HTML snapshot of the timeline instead of Markdown.**
