@@ -340,6 +340,95 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
+        public void BypassAnswersThePromptItselfInsteadOfAskingTheUser()
+        {
+            // The CLI still routes some checks here under bypassPermissions — notably
+            // blockReadsOutsideWorkingDirectories (2.1.271+) and any Bash line the checker
+            // cannot analyse, like the find -exec below. With the dropdown on Bypass the
+            // user expects no card at all, so the host has to answer them.
+            var session = NewSession(new SessionHooks
+            {
+                Settings = () => new SessionDefaults
+                {
+                    Model = "default",
+                    Effort = "default",
+                    Permission = "bypassPermissions",
+                    AllowAgents = false,
+                },
+            });
+
+            session.HandleEvent(Event("{\"type\":\"control_request\",\"request_id\":\"r1\"," +
+                                      "\"request\":{\"subtype\":\"can_use_tool\",\"tool_name\":\"Bash\"," +
+                                      "\"input\":{\"command\":\"find Back -name x.cs -exec cat {} ;\"}}}"));
+
+            Assert.Empty(MessagesOfKind("permissionRequest"));
+            // Decide() ran: the allow is on the record like any other.
+            Assert.Equal(1, session.Snapshot().ToolAcceptance.Single().Allow);
+        }
+
+        [Fact]
+        public void BypassStillLetsAskUserQuestionThrough()
+        {
+            // It rides the same can_use_tool, but it is a question, not a permission:
+            // auto-answering would send empty answers back.
+            var session = NewSession(new SessionHooks
+            {
+                Settings = () => new SessionDefaults
+                {
+                    Model = "default",
+                    Effort = "default",
+                    Permission = "bypassPermissions",
+                    AllowAgents = false,
+                },
+            });
+
+            session.HandleEvent(Event("{\"type\":\"control_request\",\"request_id\":\"r1\"," +
+                                      "\"request\":{\"subtype\":\"can_use_tool\",\"tool_name\":\"AskUserQuestion\"," +
+                                      "\"input\":{\"questions\":[{\"question\":\"Which?\",\"header\":\"Pick\"," +
+                                      "\"options\":[{\"label\":\"A\"}]}]}}}"));
+
+            Assert.NotNull(LastOfKind("askRequest"));
+        }
+
+        [Fact]
+        public void BypassApprovesExitPlanModeButStillSavesThePlan()
+        {
+            var saved = new List<string>();
+            var session = NewSession(new SessionHooks
+            {
+                SavePlan = plan => { saved.Add(plan); return "plan.md"; },
+                Settings = () => new SessionDefaults
+                {
+                    Model = "default",
+                    Effort = "default",
+                    Permission = "bypassPermissions",
+                    AllowAgents = false,
+                },
+            });
+
+            session.HandleEvent(Event("{\"type\":\"control_request\",\"request_id\":\"r1\"," +
+                                      "\"request\":{\"subtype\":\"can_use_tool\",\"tool_name\":\"ExitPlanMode\"," +
+                                      "\"input\":{\"plan\":\"# Plan\"}}}"));
+
+            Assert.Equal(new[] { "# Plan" }, saved);
+            Assert.Empty(MessagesOfKind("permissionRequest"));
+        }
+
+        [Fact]
+        public void TheDropdownOverrideDecidesNotJustTheSetting()
+        {
+            // Settings say default; the user moved the combo to Bypass for this session.
+            var session = NewSession();
+            session.SetPermission("bypassPermissions");
+
+            session.HandleEvent(Event("{\"type\":\"control_request\",\"request_id\":\"r1\"," +
+                                      "\"request\":{\"subtype\":\"can_use_tool\",\"tool_name\":\"Bash\"," +
+                                      "\"input\":{\"command\":\"ls\"}}}"));
+
+            Assert.Empty(MessagesOfKind("permissionRequest"));
+        }
+
+        [Fact]
         public void ADenialIsRecordedWithItsReason()
         {
             var session = NewSession();

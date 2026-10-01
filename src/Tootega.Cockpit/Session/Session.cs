@@ -757,6 +757,30 @@ namespace Tootega.Cockpit.Session
 
             _hooks.OnInteraction?.Invoke();
 
+            // Bypass means "stop asking", but some CLI checks reach the host anyway:
+            // blockReadsOutsideWorkingDirectories (CLI 2.1.271+) prompts even under
+            // --permission-mode bypassPermissions, and so does any Bash line the checker
+            // cannot fully analyse (find -exec, wildcards, chained cd). Those arrive here
+            // as a normal can_use_tool, so the dropdown only keeps its promise if we answer
+            // them ourselves. AskUserQuestion is exempt: it rides the same request but is a
+            // question to the user, and auto-answering it sends empty answers.
+            if (Permission() == "bypassPermissions" && tool != "AskUserQuestion")
+            {
+                // ExitPlanMode still saves the plan before it is approved — the file in
+                // Planing/ is the record, and losing it to the auto-allow would be a silent
+                // regression.
+                if (tool == "ExitPlanMode" && input?.ValueKind == JsonValueKind.Object &&
+                    input.Value.TryGetProperty("plan", out var autoPlanRaw) &&
+                    autoPlanRaw.ValueKind == JsonValueKind.String)
+                {
+                    var autoPlan = autoPlanRaw.GetString();
+                    if (!string.IsNullOrEmpty(autoPlan)) _hooks.SavePlan?.Invoke(autoPlan);
+                }
+
+                Decide(requestId, "allow");
+                return;
+            }
+
             if (tool == "AskUserQuestion")
             {
                 var questions = new List<AskQuestion>();
