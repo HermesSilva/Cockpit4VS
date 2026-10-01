@@ -30,6 +30,7 @@ namespace Tootega.Cockpit.Session
         public string Effort { get; set; }
         public string Permission { get; set; }
         public bool AllowAgents { get; set; }
+        public bool EnableTodoTools { get; set; }
     }
 
     /// <summary>

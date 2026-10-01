@@ -47,12 +47,16 @@ namespace Tootega.Cockpit.Options
 
         // What a new conversation starts as. The three below are the working configuration
         // rather than the CLI's own defaults: the largest window, reasoning turned up, and
-        // permissions out of the way. A user who wants the CLI to decide sets "default" here
-        // and the flag stops being passed at all.
+        // permissions out of the way. A user who wants the CLI to decide the model or the
+        // effort sets "default" there and that flag stops being passed. Permission mode is the
+        // exception: "default" is a mode of its own and is always sent (see CliArguments).
+        //
+        // Opus 5.5 is the CLI's default Opus since 2.1.280 and is natively 1M, so it needs no
+        // [1m] suffix.
         [Category(CatSession)]
         [DisplayName("Model")]
-        [Description("Default model for new sessions. 'default' passes no --model flag and lets the CLI decide. The [1m] suffix asks for the 1M context window.")]
-        public string Model { get; set; } = "claude-opus-5[1m]";
+        [Description("Default model for new sessions. 'default' passes no --model flag and lets the CLI decide. The [1m] suffix asks for the 1M context window on models that are not natively 1M.")]
+        public string Model { get; set; } = "claude-opus-5-5";
 
         [Category(CatSession)]
         [DisplayName("Effort")]
@@ -68,6 +72,13 @@ namespace Tootega.Cockpit.Options
         [DisplayName("Allow agents")]
         [Description("Allow the agent to launch subagents (Task) and workflows. Off saves tokens.")]
         public bool AllowAgents { get; set; } = false;
+
+        // Off by default on purpose: the CLI dropped these tools for the newer models
+        // (2.1.268), and turning them back on is the user's call, not ours.
+        [Category(CatSession)]
+        [DisplayName("Enable task tools")]
+        [Description("Offer TodoWrite and TaskCreate/Update/List on every model. Since CLI 2.1.268 they only exist up to Opus 4.7 / Sonnet 4.6, so on newer models (Opus 5.5...) the Tasks panel stays empty. On starts the CLI with CLAUDE_CODE_ENABLE_TODO_TOOLS=1; open tabs pick it up on their next spawn.")]
+        public bool EnableTodoTools { get; set; } = false;
 
         [Category(CatSession)]
         [DisplayName("Auto-resume last session")]

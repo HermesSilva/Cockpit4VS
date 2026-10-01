@@ -118,8 +118,13 @@ inline SVG QR codes, so they never touch disk.
 `Tools > Options > Tootega Cockpit`, grouped as:
 
 - **Engine** — CLI path, engine selection, and the optional local Tootega engine.
-- **Session** — model, effort, permission mode, agents, auto-resume, auto-save before
-  read/write.
+- **Session** — model (default `claude-opus-5-5`, natively 1M), effort, permission mode,
+  agents, task tools, auto-resume, auto-save before read/write. The permission mode is
+  always passed to the CLI, `default` included: since CLI 2.1.285 a `-p` session with no
+  mode starts in auto on third-party providers or with telemetry off. **Enable task tools**
+  (off by default) starts the CLI with `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` — since CLI 2.1.268
+  TodoWrite/Task* only exist up to Opus 4.7 / Sonnet 4.6, so without it the Tasks panel
+  stays empty on the newer models.
 - **Interface** — notifications, expansion defaults, timeline verbosity, spell check, your
   display name, and the title bar button.
 - **Voice** — ffmpeg path, dictation language, post-dictation correction.
@@ -130,8 +135,9 @@ The **quiet directive** leads the text appended to the CLI's system prompt, befo
 question-language rule and your own text: it tells the agent not to narrate the execution and
 not to close with a report or summary. It has no on/off switch — an empty box injects nothing.
 
-Defaults match the VS Code extension, so moving between the two editors changes nothing
-about how the agent behaves.
+The agent's behaviour is the same in both editors. The session defaults are not: this
+port starts on a working configuration (Opus 5.5, `high` effort, `bypassPermissions`)
+where the VS Code extension leaves model, effort and permission mode at `default`.
 
 ## Building from source
 

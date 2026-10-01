@@ -180,6 +180,7 @@ namespace Tootega.Cockpit.Session
                 // forwarding on so their text can be shown under the Task card.
                 DisallowedTools = AllowAgents() ? null : new List<string> { "Task", "Workflow" },
                 ForwardSubagentText = AllowAgents(),
+                EnableTodoTools = Defaults().EnableTodoTools,
                 // ResumeId first, but falling back to SessionId: any path that knows the
                 // session but never pinned the resume id would otherwise spawn without
                 // --resume and duplicate the context on disk.

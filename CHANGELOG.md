@@ -9,6 +9,34 @@ of builds it took to get there.
 
 ## Unreleased
 
+Reviewed against Claude Code CLI 2.1.266 → 2.1.286. Almost everything in that window
+(sandbox, MCP, plugins, gateway, Remote Control, artifacts, terminal UI) arrives with the
+`claude` binary; what follows is the part that touches this extension's surface.
+
+- **Fixed: the "default" permission mode is now sent to the CLI instead of being left out.**
+  Since CLI 2.1.285, a `-p` session with no mode configured starts in **auto** on third-party
+  providers (Bedrock, Vertex, Foundry, gateways) or with telemetry off. The extension omitted
+  `--permission-mode` when the dropdown said "default", so in those setups the panel showed
+  "default" while the CLI was running its auto-mode classifier. Every mode is now passed
+  explicitly. (The CLI's own help now calls it `manual`; `default` is still accepted, and it
+  is the only name older CLIs know.)
+- **Fixed: cost estimate for Claude Opus 5.5 and Sonnet 5.5.** Both were priced as their
+  family (Opus $5/$25, Sonnet $3/$15). Opus 5.5 (CLI 2.1.280, now the default Opus) is $4/$20
+  and Sonnet 5.5 (2.1.284) is $2/$10, both with a flat $0.20/MTok cache read — so the
+  estimate ran 25–50% high.
+- **Changed: the default model is now `claude-opus-5-5`** (was `claude-opus-5[1m]`). Opus 5.5
+  is the CLI's default Opus since 2.1.280, cheaper than Opus 5, and natively 1M, so it needs
+  no `[1m]` suffix. Only affects installs that never changed the Model option.
+- **Added: Enable task tools** (Tools → Options → Tootega Cockpit → Session, off by default).
+  Since CLI 2.1.268 the task tools (TodoWrite, TaskCreate/Update/List) are only offered up to
+  Opus 4.7 / Sonnet 4.6, so on the newer models the Tasks panel stays empty. On, the CLI is
+  started with `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` from the next spawn.
+- **Added: `/output-style`** in the slash-command catalog (CLI 2.1.269 — lists or switches
+  output styles, and works in headless sessions).
+- The engine environment (`MAX_THINKING_TOKENS`, `CLAUDE_CODE_ENABLE_AUTO_MODE`, the new
+  todo flag) moved from `CliProcessManager` into `CliArguments.Environment`, next to the
+  argument list, so it is covered by tests.
+
 ## 1.0.67 — 2026-09-21
 
 - **Fixed: second half of the 1.0.66 typing fix — the prompt marks beside the scrollbar were

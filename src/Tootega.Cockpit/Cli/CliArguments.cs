@@ -107,7 +107,12 @@ namespace Tootega.Cockpit.Cli
             if (!string.IsNullOrWhiteSpace(options.Model)) { args.Add("--model"); args.Add(options.Model); }
             if (!string.IsNullOrWhiteSpace(options.Effort)) { args.Add("--effort"); args.Add(options.Effort); }
 
-            if (!string.IsNullOrWhiteSpace(options.PermissionMode) && options.PermissionMode != "default")
+            // Always explicit, "default" included. Since CLI 2.1.285 a -p session with no mode
+            // configured starts in AUTO on third-party providers or with telemetry off, so
+            // leaving the flag out let the dropdown say "default" while the CLI ran its
+            // classifier. The CLI now lists the mode as "manual"; "default" is still accepted
+            // and older CLIs only know it.
+            if (!string.IsNullOrWhiteSpace(options.PermissionMode))
             {
                 args.Add("--permission-mode");
                 args.Add(options.PermissionMode);
@@ -193,6 +198,36 @@ namespace Tootega.Cockpit.Cli
             if (options.PermissionMode == "bypassPermissions") args.Add("--yes");
 
             return args;
+        }
+
+        /// <summary>
+        /// Environment variables the engine process gets on top of the inherited ones. Kept
+        /// here, next to the arguments, for the same reason: it is part of the contract with
+        /// the binary and a test is the only place a mistake in it would show.
+        /// </summary>
+        public static Dictionary<string, string> Environment(CliOptions options)
+        {
+            var env = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                // Thinking stays off. This is the pair of alwaysThinkingEnabled:false in the
+                // settings file — a budget inherited from the Visual Studio process
+                // environment would switch reasoning back on despite the setting.
+                ["MAX_THINKING_TOKENS"] = "0",
+            };
+
+            // Auto mode (the CLI classifier decides allow/deny) is opt-in on
+            // Bedrock/Vertex/Foundry via env (2.1.158/159). Setting it when the mode is
+            // 'auto' makes behaviour uniform across providers. It does NOT bypass
+            // permissions — it enables the CLI's native mode, which still routes what it
+            // must through control_request.
+            if (options.PermissionMode == "auto") env["CLAUDE_CODE_ENABLE_AUTO_MODE"] = "1";
+
+            // Since CLI 2.1.268 TodoWrite/Task* are only offered up to Opus 4.7 / Sonnet 4.6,
+            // so on Opus 5.5 the Tasks panel has nothing to show. Opt-in: the CLI dropped them
+            // on purpose for the newer models.
+            if (options.EnableTodoTools) env["CLAUDE_CODE_ENABLE_TODO_TOOLS"] = "1";
+
+            return env;
         }
 
         public static List<string> For(CliOptions options, string promptFile = null, string settingsFile = null)

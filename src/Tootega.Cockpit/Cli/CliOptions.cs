@@ -61,5 +61,11 @@ namespace Tootega.Cockpit.Cli
         /// polluting the main bubble.
         /// </summary>
         public bool ForwardSubagentText { get; set; }
+
+        /// <summary>
+        /// Offers TodoWrite/Task* on the models the CLI took them away from (2.1.268) — see
+        /// <see cref="CliArguments.Environment"/>.
+        /// </summary>
+        public bool EnableTodoTools { get; set; }
     }
 }

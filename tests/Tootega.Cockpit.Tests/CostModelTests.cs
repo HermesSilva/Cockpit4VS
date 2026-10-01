@@ -29,6 +29,27 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
+        public void TheFivePointFivePairHasItsOwnPrice()
+        {
+            // CLI 2.1.280/2.1.284: cheaper than the family, with a flat $0.20 cache read.
+            var million = new Usage
+            {
+                InputTokens = 1_000_000,
+                OutputTokens = 1_000_000,
+                CacheCreationInputTokens = 1_000_000,
+                CacheReadInputTokens = 1_000_000,
+            };
+
+            Assert.Equal(29.2, CostModel.EstimateCost(million, "claude-opus-5-5"), 6);
+            Assert.Equal(29.2, CostModel.EstimateCost(million, "claude-opus-5-5[1m]"), 6);
+            Assert.Equal(14.7, CostModel.EstimateCost(million, "claude-sonnet-5-5"), 6);
+            // The other versions keep the family price.
+            Assert.Equal(36.75, CostModel.EstimateCost(million, "claude-opus-5"), 6);
+            Assert.Equal(1_000_000, CostModel.DeriveContextLimit("claude-opus-5-5"));
+            Assert.Equal(1_000_000, CostModel.DeriveContextLimit("claude-sonnet-5-5"));
+        }
+
+        [Fact]
         public void UnknownModelsFallBackToTheExpensiveDefault()
         {
             // Under-reporting cost is the worse error for a transparency panel, so an

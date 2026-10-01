@@ -68,13 +68,50 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
-        public void OmitsDefaultPermissionMode()
+        public void SendsDefaultPermissionModeExplicitly()
         {
-            // 'default' is our label for "say nothing", not a value the CLI knows.
+            // CLI 2.1.285: a -p session with no mode configured starts in AUTO on third-party
+            // providers or with telemetry off. Saying nothing let the dropdown read "default"
+            // while the CLI ran its classifier, so "default" is now sent like any other mode.
             var options = Claude();
             options.PermissionMode = "default";
 
-            Assert.DoesNotContain("--permission-mode", CliArguments.ForClaude(options, null, null));
+            Assert.Equal("default", ValueAfter(CliArguments.ForClaude(options, null, null), "--permission-mode"));
+        }
+
+        [Fact]
+        public void OmitsPermissionModeOnlyWhenUnset()
+        {
+            Assert.DoesNotContain("--permission-mode", CliArguments.ForClaude(Claude(), null, null));
+        }
+
+        // --- Environment ---
+
+        [Fact]
+        public void EnvironmentAlwaysTurnsThinkingOff()
+        {
+            Assert.Equal("0", CliArguments.Environment(Claude())["MAX_THINKING_TOKENS"]);
+        }
+
+        [Fact]
+        public void EnvironmentEnablesAutoModeOnlyForAuto()
+        {
+            Assert.False(CliArguments.Environment(Claude()).ContainsKey("CLAUDE_CODE_ENABLE_AUTO_MODE"));
+
+            var options = Claude();
+            options.PermissionMode = "auto";
+            Assert.Equal("1", CliArguments.Environment(options)["CLAUDE_CODE_ENABLE_AUTO_MODE"]);
+        }
+
+        [Fact]
+        public void EnvironmentEnablesTodoToolsOnlyWhenAsked()
+        {
+            // CLI 2.1.268 offers TodoWrite/Task* only up to Opus 4.7 / Sonnet 4.6.
+            Assert.False(CliArguments.Environment(Claude()).ContainsKey("CLAUDE_CODE_ENABLE_TODO_TOOLS"));
+
+            var options = Claude();
+            options.EnableTodoTools = true;
+            Assert.Equal("1", CliArguments.Environment(options)["CLAUDE_CODE_ENABLE_TODO_TOOLS"]);
         }
 
         [Fact]

@@ -35,9 +35,14 @@ namespace Tootega.Cockpit.Stats
         /// </summary>
         public const long CacheLifeMs = 60 * 60 * 1000L;
 
+        // First match wins, so a versioned row must sit above its family's catch-all. The 5.5
+        // pair (CLI 2.1.280/2.1.284) broke the family pricing: cheaper per token, and the cache
+        // read is a flat $0.20 rather than 0.1x input.
         private static readonly List<KeyValuePair<Regex, TokenPrice>> Prices =
             new List<KeyValuePair<Regex, TokenPrice>>
             {
+                Price("opus-5-5", 4, 20, 5, 0.2),
+                Price("sonnet-5-5", 2, 10, 2.5, 0.2),
                 Price("opus", 5, 25, 6.25, 0.5),
                 Price("sonnet", 3, 15, 3.75, 0.3),
                 Price("haiku", 1, 5, 1.25, 0.1),

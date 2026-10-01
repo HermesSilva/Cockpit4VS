@@ -22,6 +22,7 @@ namespace Tootega.Cockpit.Settings
         string Effort { get; }
         string PermissionMode { get; }
         bool AllowAgents { get; }
+        bool EnableTodoTools { get; }
         bool AutoResumeLastSession { get; }
         bool Autosave { get; }
 

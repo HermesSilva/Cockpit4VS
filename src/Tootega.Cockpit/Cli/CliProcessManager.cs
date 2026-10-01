@@ -153,18 +153,8 @@ namespace Tootega.Cockpit.Cli
             {
                 var info = ProcessLauncher.Build(_options.ExecutablePath, args, _options.Cwd);
 
-                // Auto mode (the CLI classifier decides allow/deny) is opt-in on
-                // Bedrock/Vertex/Foundry via env (2.1.158/159). Setting it when the mode is
-                // 'auto' makes behaviour uniform across providers. It does NOT bypass
-                // permissions — it enables the CLI's native mode, which still routes what it
-                // must through control_request.
-                if (_options.PermissionMode == "auto")
-                    info.EnvironmentVariables["CLAUDE_CODE_ENABLE_AUTO_MODE"] = "1";
-
-                // Thinking stays off. This is the pair of alwaysThinkingEnabled:false in the
-                // settings file — a budget inherited from the Visual Studio process
-                // environment would switch reasoning back on despite the setting.
-                info.EnvironmentVariables["MAX_THINKING_TOKENS"] = "0";
+                foreach (var kv in CliArguments.Environment(_options))
+                    info.EnvironmentVariables[kv.Key] = kv.Value;
 
                 var process = new Process { StartInfo = info, EnableRaisingEvents = true };
                 process.Exited += OnProcessExited;

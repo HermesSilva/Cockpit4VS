@@ -302,6 +302,7 @@ namespace Tootega.Cockpit.Host
                     Effort = Blank(_settings.Effort) ?? ModelCatalog.DefaultModelId,
                     Permission = Blank(_settings.PermissionMode) ?? ModelCatalog.DefaultModelId,
                     AllowAgents = _settings.AllowAgents,
+                    EnableTodoTools = _settings.EnableTodoTools,
                 },
 
                 // Empty follows the conversation, which is what the user is actually writing in.

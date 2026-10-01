@@ -26,6 +26,7 @@ namespace Tootega.Cockpit.Settings
         public string Effort => _options.Effort;
         public string PermissionMode => _options.PermissionMode;
         public bool AllowAgents => _options.AllowAgents;
+        public bool EnableTodoTools => _options.EnableTodoTools;
         public bool AutoResumeLastSession => _options.AutoResumeLastSession;
         public bool Autosave => _options.Autosave;
 

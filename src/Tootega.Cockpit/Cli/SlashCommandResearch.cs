@@ -48,7 +48,7 @@ namespace Tootega.Cockpit.Cli
         private static readonly HashSet<string> BuiltIn = new HashSet<string>(StringComparer.Ordinal)
         {
             "clear", "compact", "context", "memory", "resume", "fork", "model", "config",
-            "permissions", "theme", "cd", "review", "code-review", "init", "mcp", "agents",
+            "permissions", "theme", "output-style", "cd", "review", "code-review", "init", "mcp", "agents",
             "hooks", "goal", "loop", "workflows", "diff", "advisor", "reload-plugins", "login",
             "logout", "web-setup", "cost", "usage", "status", "stats", "insights", "tasks",
             "skill-doctor", "help", "doctor",
