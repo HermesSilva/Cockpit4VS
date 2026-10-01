@@ -9,6 +9,8 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.68 — 2026-09-30
+
 Reviewed against Claude Code CLI 2.1.266 → 2.1.286. Almost everything in that window
 (sandbox, MCP, plugins, gateway, Remote Control, artifacts, terminal UI) arrives with the
 `claude` binary; what follows is the part that touches this extension's surface.
