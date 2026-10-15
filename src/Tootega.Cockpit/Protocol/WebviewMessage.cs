@@ -242,7 +242,11 @@ namespace Tootega.Cockpit.Protocol
         /// <summary>The direct mode's payload: the self-contained timeline snapshot.</summary>
         public string Html { get; set; }
         public string FileName { get; set; }
-        /// <summary>direct = the already-built HTML snapshot; ai = rewritten via the CLI (spends tokens).</summary>
+        /// <summary>
+        /// direct = the already-built HTML snapshot, written to the project root and opened;
+        /// ai = rewritten via the CLI (spends tokens); timeline = the same HTML snapshot as
+        /// direct but auto-saved to .cockpit/TimeLine/&lt;title&gt;.html and not opened.
+        /// </summary>
         public string Mode { get; set; }
     }
 

@@ -678,10 +678,14 @@ export type WebviewToHost =
   | { kind: 'mentionSearch'; requestId: string; query: string } // @-mention: busca arquivos
   | { kind: 'openDiff'; tool: string; input: unknown } // opens the proposed diff in the editor's own comparison window
   | { kind: 'draftChanged'; text: string } // mirrors the draft or dictation in the host, so a dead renderer loses nothing
-  // Exports the conversation to the project root. mode 'direct' = a self-contained .html
-  // snapshot of the timeline as rendered (`html`, built in the webview from the live DOM);
-  // 'ai' = a .md rewritten via the CLI (same model/effort, spends tokens) from `markdown`.
-  | { kind: 'exportMd'; markdown?: string; html?: string; fileName?: string; mode: 'direct' | 'ai' }
+  // Exports the conversation. mode 'direct' = a self-contained .html snapshot of the timeline
+  // as rendered (`html`, built in the webview from the live DOM), written to the project root
+  // and opened in the editor; 'ai' = a .md rewritten via the CLI (same model/effort, spends
+  // tokens) from `markdown`; 'timeline' = the same HTML snapshot as 'direct' but written to
+  // `.cockpit/TimeLine/<title>.html` (created on demand, overwritten each turn) and NOT opened
+  // in the editor — this is the destination for both the "save timeline" button and the
+  // automatic save the webview fires when a turn finishes.
+  | { kind: 'exportMd'; markdown?: string; html?: string; fileName?: string; mode: 'direct' | 'ai' | 'timeline' }
   | { kind: 'voiceDictGet' } // modal: loads the account's dictation dictionary
   | { kind: 'voiceDictSave'; data: VoiceDictData } // modal: saves the dictation dictionary
   | { kind: 'setKeepCacheAlive'; value: boolean } // turns this tab's cache keep-alive on and off

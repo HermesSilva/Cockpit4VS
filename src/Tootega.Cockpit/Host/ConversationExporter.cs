@@ -85,6 +85,19 @@ namespace Tootega.Cockpit.Host
                     content = html;
                 }
 
+                // 'timeline' is the auto-save fired at the end of every turn: a stable snapshot
+                // under .cockpit/TimeLine named after the tab, overwritten each turn (no unique
+                // suffix) and NOT opened in the editor — it would steal focus every prompt.
+                if (string.Equals(mode, "timeline", StringComparison.Ordinal))
+                {
+                    var directory = Path.Combine(cwd, ".cockpit", "TimeLine");
+                    Directory.CreateDirectory(directory);
+                    var timelineTarget = Path.Combine(directory, SafeName(fileName, "conversation.html"));
+                    File.WriteAllText(timelineTarget, content, new UTF8Encoding(false));
+                    Log.Info("Timeline auto-saved to " + timelineTarget);
+                    return;
+                }
+
                 var fallback = string.Equals(mode, "ai", StringComparison.Ordinal)
                     ? "conversation.md"
                     : "conversation.html";
