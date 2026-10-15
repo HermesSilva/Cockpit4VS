@@ -9,6 +9,8 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.70 — 2026-10-15
+
 - **Added: the timeline is auto-saved as HTML at the end of every turn.** When a prompt
   finishes, the panel writes a self-contained snapshot to `.cockpit\TimeLine\<tab title>.html`
   under the workspace, overwriting the same file each turn — one up-to-date file per
@@ -16,6 +18,15 @@ of builds it took to get there.
   live DOM, with expandable tool cards), so nothing is re-rendered; the file is not opened in
   the editor, to avoid stealing focus every prompt. A **Save timeline** button at the end of
   the timeline triggers the same save on demand.
+- **Fixed: model discovery, usage, and voice now work under every login type, not just a
+  subscription `/login`.** The Cockpit read the OAuth token only from
+  `~/.claude/.credentials.json`, which a long-lived `claude setup-token` login never writes —
+  its token lives in the `CLAUDE_CODE_OAUTH_TOKEN` environment variable — and it ignored
+  `CLAUDE_CONFIG_DIR`. Under those logins the model picker stayed frozen on its cached
+  catalogue, usage was blank, and dictation/voice went dead while the CLI itself worked.
+  Credential resolution now follows the CLI's documented precedence (`ANTHROPIC_AUTH_TOKEN`,
+  then `CLAUDE_CODE_OAUTH_TOKEN`, then `claudeAiOauth.accessToken` at `%CLAUDE_CONFIG_DIR%`
+  when set) from `ClaudeHome`, shared by every direct Anthropic call.
 
 ## 1.0.68 — 2026-09-30
 

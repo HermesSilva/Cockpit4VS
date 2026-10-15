@@ -35,7 +35,10 @@ it. See [`docs/architecture.md`](docs/architecture.md) for how that works.
 - **Visual Studio 2022 17.0 or later**, 64-bit. Community, Professional or Enterprise.
 - **Claude Code CLI** on the `PATH`, or its full path set in the options.
   Install it from Anthropic and sign in once (`claude` → `/login`), or use the
-  **Sign in to Claude (CLI)** command.
+  **Sign in to Claude (CLI)** command. Any login the CLI accepts also drives the
+  Cockpit's own reads (model list, usage, voice) — a subscription `/login`, an
+  `ANTHROPIC_API_KEY`, or a long-lived `claude setup-token` exported as
+  `CLAUDE_CODE_OAUTH_TOKEN` (`CLAUDE_CONFIG_DIR` is honored too).
 - **WebView2 runtime** — already present on any machine with Visual Studio.
 - **ffmpeg**, only if you want voice dictation.
 

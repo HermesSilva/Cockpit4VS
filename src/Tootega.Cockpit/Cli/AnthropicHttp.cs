@@ -62,19 +62,17 @@ namespace Tootega.Cockpit.Cli
         }
 
         /// <summary>
-        /// Resolves the credential for a clean call, in the order that respects the user's
-        /// intent: an explicit key first, then the environment, and only then the CLI's own
-        /// OAuth token — which is what lets a subscription account with no API key still use
-        /// these endpoints.
+        /// Resolves the credential for a clean call. An explicit API key (setting or env) wins
+        /// as an x-api-key credential; otherwise the bearer comes from the shared chain in
+        /// ClaudeHome.ReadOauthToken (ANTHROPIC_AUTH_TOKEN, then the long-lived
+        /// CLAUDE_CODE_OAUTH_TOKEN, then the on-disk subscription login) — which is what lets
+        /// every login type, not just a subscription /login, use these endpoints.
         /// </summary>
         public static ApiCredentials ResolveCredentials(string configuredApiKey)
         {
             var apiKey = configuredApiKey?.Trim();
             if (string.IsNullOrEmpty(apiKey)) apiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
             if (!string.IsNullOrEmpty(apiKey)) return new ApiCredentials { ApiKey = apiKey };
-
-            var authToken = Environment.GetEnvironmentVariable("ANTHROPIC_AUTH_TOKEN");
-            if (!string.IsNullOrEmpty(authToken)) return new ApiCredentials { AuthToken = authToken };
 
             var oauth = ClaudeHome.ReadOauthToken();
             return string.IsNullOrEmpty(oauth) ? null : new ApiCredentials { AuthToken = oauth };
