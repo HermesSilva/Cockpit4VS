@@ -14,6 +14,10 @@ namespace Tootega.Cockpit.Stats
         public double CacheWrite { get; set; }
         /// <summary>Roughly 0.1x input.</summary>
         public double CacheRead { get; set; }
+        /// <summary>Prompt size (input + cache write + cache read) past which <see cref="LongPrompt"/> applies.</summary>
+        public long LongPromptAbove { get; set; }
+        /// <summary>A second tier for the whole request once its prompt passes <see cref="LongPromptAbove"/>.</summary>
+        public TokenPrice LongPrompt { get; set; }
     }
 
     /// <summary>
@@ -35,14 +39,18 @@ namespace Tootega.Cockpit.Stats
         /// </summary>
         public const long CacheLifeMs = 60 * 60 * 1000L;
 
-        // First match wins, so a versioned row must sit above its family's catch-all. The 5.5
-        // pair (CLI 2.1.280/2.1.284) broke the family pricing: cheaper per token, and the cache
-        // read is a flat $0.20 rather than 0.1x input.
+        // First match wins, so a versioned row must sit above its family's catch-all. The 5.x
+        // rows broke the family pricing: the 5.5 pair is cheaper per token (CLI 2.1.280/2.1.284),
+        // and the cache reads of Sonnet 5.5 ($0.10, 2.1.296), Opus 5.5 ($0.20) and Fable 5.1
+        // ($0.25) are flat rather than 0.1x input. Haiku 5.5 (2.1.293) is the first row with a
+        // long-prompt tier.
         private static readonly List<KeyValuePair<Regex, TokenPrice>> Prices =
             new List<KeyValuePair<Regex, TokenPrice>>
             {
                 Price("opus-5-5", 4, 20, 5, 0.2),
-                Price("sonnet-5-5", 2, 10, 2.5, 0.2),
+                Price("sonnet-5-5", 2, 10, 2.5, 0.1),
+                LongPromptTier(Price("haiku-5-5", 0.1, 0.5, 0.125, 0.01), 100_000, 0.5, 2.5, 0.625, 0.05),
+                Price("(?:fable|mythos)-5-1", 10, 50, 12.5, 0.25),
                 Price("opus", 5, 25, 6.25, 0.5),
                 Price("sonnet", 3, 15, 3.75, 0.3),
                 Price("haiku", 1, 5, 1.25, 0.1),
@@ -60,12 +68,30 @@ namespace Tootega.Cockpit.Stats
                 new TokenPrice { Input = input, Output = output, CacheWrite = cacheWrite, CacheRead = cacheRead });
         }
 
-        public static TokenPrice PriceFor(string model)
+        private static KeyValuePair<Regex, TokenPrice> LongPromptTier(KeyValuePair<Regex, TokenPrice> row, long above,
+                                                                      double input, double output,
+                                                                      double cacheWrite, double cacheRead)
+        {
+            row.Value.LongPromptAbove = above;
+            row.Value.LongPrompt =
+                new TokenPrice { Input = input, Output = output, CacheWrite = cacheWrite, CacheRead = cacheRead };
+            return row;
+        }
+
+        /// <summary>
+        /// The model's price, at the tier a request of <paramref name="promptTokens"/> (input +
+        /// cache write + cache read) is billed at. The CLI applies a long-prompt tier to the
+        /// WHOLE request, output included, once the prompt passes the threshold — so the caller
+        /// passes the request's own prompt size, never a session total.
+        /// </summary>
+        public static TokenPrice PriceFor(string model, long promptTokens = 0)
         {
             if (string.IsNullOrEmpty(model)) return DefaultPrice;
             foreach (var entry in Prices)
             {
-                if (entry.Key.IsMatch(model)) return entry.Value;
+                if (!entry.Key.IsMatch(model)) continue;
+                var price = entry.Value;
+                return price.LongPrompt != null && promptTokens > price.LongPromptAbove ? price.LongPrompt : price;
             }
             // An unrecognised model is priced as the most expensive family rather than as
             // free: under-reporting cost is the worse error for a transparency panel.
@@ -76,10 +102,13 @@ namespace Tootega.Cockpit.Stats
         public static double EstimateCost(Usage usage, string model)
         {
             if (usage == null) return 0;
-            var price = PriceFor(model);
-            return (Num(usage.InputTokens) * price.Input
-                    + Num(usage.CacheCreationInputTokens) * price.CacheWrite
-                    + Num(usage.CacheReadInputTokens) * price.CacheRead
+            var input = Num(usage.InputTokens);
+            var create = Num(usage.CacheCreationInputTokens);
+            var read = Num(usage.CacheReadInputTokens);
+            var price = PriceFor(model, input + create + read);
+            return (input * price.Input
+                    + create * price.CacheWrite
+                    + read * price.CacheRead
                     + Num(usage.OutputTokens) * price.Output) / 1_000_000.0;
         }
 

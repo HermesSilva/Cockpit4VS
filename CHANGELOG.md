@@ -9,6 +9,28 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.71 — 2026-10-22
+
+Reviewed against Claude Code CLI 2.1.287 → 2.1.308. The wire contract is unchanged (the one
+new field, `thinking_display` on stream events, is harmless); everything else in that window
+arrives with the `claude` binary.
+
+- **Changed: thinking is a card now.** The "Show thinking / Hide thinking" link became a
+  collapsible 💭 card shaped like the tool cards: one header line with the size of the
+  reasoning, a *Thinking…* status and the in-progress stripe while the model is still
+  reasoning, and the body only when opened (with its own scroll, like a tool body). The
+  *Expand thinking blocks* option still decides whether it starts open. The HTML export treats it as
+  any other card.
+- **Changed: the Hub's button bar lost Plugins and Credentials vault.** The vault is still one
+  click away from the 🔐 button beside the composer. The plugins manager has no other entry
+  point, so it is out of reach for now — manage plugins with `claude plugin …` in a terminal.
+- **Fixed: cost estimate for the newer 5.x models.** Sonnet 5.5 reads cache at $0.10/MTok
+  since CLI 2.1.296, not $0.20; Fable/Mythos 5.1 at $0.25, not the family's $1. Haiku 5.5
+  (2.1.293, $0.10/$0.50) is the first model with a **long-prompt tier**: once a request's
+  prompt (input + cache read + cache write) passes 100K tokens, the whole request — output
+  included — is billed at $0.50/$2.50. The estimate now applies that per request, never on a
+  session total.
+
 ## 1.0.70 — 2026-10-15
 
 - **Added: the timeline is auto-saved as HTML at the end of every turn.** When a prompt

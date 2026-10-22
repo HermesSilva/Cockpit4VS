@@ -31,7 +31,8 @@ namespace Tootega.Cockpit.Tests
         [Fact]
         public void TheFivePointFivePairHasItsOwnPrice()
         {
-            // CLI 2.1.280/2.1.284: cheaper than the family, with a flat $0.20 cache read.
+            // CLI 2.1.280/2.1.284: cheaper than the family, with a flat cache read — $0.20 on
+            // Opus 5.5, $0.10 on Sonnet 5.5 since 2.1.296.
             var million = new Usage
             {
                 InputTokens = 1_000_000,
@@ -42,11 +43,31 @@ namespace Tootega.Cockpit.Tests
 
             Assert.Equal(29.2, CostModel.EstimateCost(million, "claude-opus-5-5"), 6);
             Assert.Equal(29.2, CostModel.EstimateCost(million, "claude-opus-5-5[1m]"), 6);
-            Assert.Equal(14.7, CostModel.EstimateCost(million, "claude-sonnet-5-5"), 6);
+            Assert.Equal(14.6, CostModel.EstimateCost(million, "claude-sonnet-5-5"), 6);
+            // Fable 5.1 reads cache at $0.25, not the family's $1.
+            Assert.Equal(72.75, CostModel.EstimateCost(million, "claude-fable-5-1"), 6);
             // The other versions keep the family price.
             Assert.Equal(36.75, CostModel.EstimateCost(million, "claude-opus-5"), 6);
+            Assert.Equal(73.5, CostModel.EstimateCost(million, "claude-fable-5"), 6);
             Assert.Equal(1_000_000, CostModel.DeriveContextLimit("claude-opus-5-5"));
             Assert.Equal(1_000_000, CostModel.DeriveContextLimit("claude-sonnet-5-5"));
+        }
+
+        [Fact]
+        public void HaikuFivePointFiveBillsTheWholeRequestAtTheLongTierPastOneHundredK()
+        {
+            // CLI 2.1.293. Exactly 100K of prompt stays on the short tier.
+            Assert.Equal(0.51, CostModel.EstimateCost(
+                new Usage { InputTokens = 100_000, OutputTokens = 1_000_000 }, "claude-haiku-5-5"), 6);
+            // One token more and the output moves up with it.
+            Assert.Equal(2.5500005, CostModel.EstimateCost(
+                new Usage { InputTokens = 100_001, OutputTokens = 1_000_000 }, "claude-haiku-5-5"), 6);
+            // The threshold counts cache reads and writes as prompt.
+            Assert.Equal((0.5 + 100_000 * 0.05) / 1_000_000, CostModel.EstimateCost(
+                new Usage { InputTokens = 1, CacheReadInputTokens = 100_000 }, "claude-haiku-5-5"), 9);
+            // Haiku 4.5 keeps the family price, with no long tier.
+            Assert.Equal(0.2, CostModel.EstimateCost(new Usage { InputTokens = 200_000 }, "claude-haiku-4-5"), 6);
+            Assert.Equal(1_000_000, CostModel.DeriveContextLimit("claude-haiku-5-5"));
         }
 
         [Fact]

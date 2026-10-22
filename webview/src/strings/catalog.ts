@@ -350,8 +350,9 @@ export const strings = {
   'turn.canceled': 'Canceled',
   'role.system': 'System',
 
-  'thinking.show': 'Show thinking',
-  'thinking.hide': 'Hide thinking',
+  'thinking.title': 'Thinking',
+  'thinking.size': '{0} chars',
+  'thinking.running': 'Thinking…',
 
   'tool.input': 'Input',
   'tool.output': 'Output',

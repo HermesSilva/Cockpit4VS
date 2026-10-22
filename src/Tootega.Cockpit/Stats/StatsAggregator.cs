@@ -732,7 +732,7 @@ namespace Tootega.Cockpit.Stats
             _outputTokens += output;
             _currentInput = _currentCreate = _currentRead = _currentOutput = 0;
 
-            var price = CostModel.PriceFor(_model);
+            var price = CostModel.PriceFor(_model, _contextUsed);
             var turnCost = (input * price.Input
                             + create * price.CacheWrite
                             + read * price.CacheRead

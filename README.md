@@ -73,8 +73,8 @@ process, so two conversations never share state.
 
 ## What it does
 
-**Conversation.** Token-by-token streaming, thinking blocks, a tool-call timeline with a
-card per tool, markdown with syntax highlighting and a line-number gutter, find in
+**Conversation.** Token-by-token streaming, thinking as a collapsible card, a tool-call
+timeline with a card per tool, markdown with syntax highlighting and a line-number gutter, find in
 conversation, export to a self-contained HTML file (also auto-saved to `.cockpit\TimeLine\`
 at the end of every turn), a scroll-marker rail with one mark per
 prompt, and a verbosity filter that changes what you see without changing what the agent

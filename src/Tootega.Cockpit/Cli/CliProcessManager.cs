@@ -129,6 +129,14 @@ namespace Tootega.Cockpit.Cli
                 // used to exist only when a skill was overridden). Two locks because the CLI
                 // has two ways in: this setting and the MAX_THINKING_TOKENS budget (env, set
                 // in SpawnWith). Closing one leaves the other in force.
+                //
+                // Neither lock reaches the models that always think — Opus 5.5, Sonnet 5.5,
+                // Haiku 5.5 and Fable 5.x carry `rejects_disabled_thinking` in the CLI's model
+                // table (already in 2.1.286), so the CLI never sends thinking:disabled for them
+                // and they stay on adaptive thinking; at effort max it shows up even on a
+                // one-line answer (measured on 2.1.300). Opus 5 and Sonnet 5 still honour both
+                // locks. There is no flag that changes this — `--thinking disabled` included —
+                // so do not "fix" it here: lower the effort or pick a model that accepts it.
                 var settings = new Dictionary<string, object> { ["alwaysThinkingEnabled"] = false };
                 if (_options.SkillOverrides != null && _options.SkillOverrides.Count > 0)
                     settings["skillOverrides"] = _options.SkillOverrides;
