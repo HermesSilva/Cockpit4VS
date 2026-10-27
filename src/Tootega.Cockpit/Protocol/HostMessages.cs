@@ -214,10 +214,6 @@ namespace Tootega.Cockpit.Protocol
         public static HostMessage MentionResults(string requestId, IReadOnlyList<MentionItem> items) =>
             new HostMessage("mentionResults", ("requestId", requestId), ("items", items));
 
-        /// <summary>The editor selection to share as @file#a-b, or absent to clear it.</summary>
-        public static HostMessage Selection(string reference) =>
-            new HostMessage("selection", ("ref", reference));
-
         /// <summary>Restores the draft after a renderer reload or crash.</summary>
         public static HostMessage DraftRestore(string text) =>
             new HostMessage("draftRestore", ("text", text));

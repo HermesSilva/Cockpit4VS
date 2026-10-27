@@ -26,8 +26,6 @@ export const strings = {
   'onboarding.signin': 'Sign in to your Claude account',
   'onboarding.session': 'Open or create a context',
   'onboarding.voice': 'Try voice dictation and the spell-checker',
-  'selection.included': 'Editor selection shared with Claude — click to exclude',
-  'selection.excluded': 'Editor selection hidden — click to include',
   'about.cliOutdated': 'New version {0} available. Update with: claude update',
   'about.cliBelowMin':
     'This CLI is older than {0}. Interrupting the agent may silently fail. Update with: claude update',

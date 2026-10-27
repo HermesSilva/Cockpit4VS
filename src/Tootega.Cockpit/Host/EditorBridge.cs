@@ -161,35 +161,6 @@ namespace Tootega.Cockpit.Host
             }
         }
 
-        /// <summary>The editor selection as an @file#a-b reference, or null when there is none.</summary>
-        public string SelectionReference()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
-            try
-            {
-                var document = Dte()?.ActiveDocument;
-                if (document?.Object("TextDocument") is not TextDocument text) return null;
-
-                var selection = text.Selection;
-                if (selection == null) return null;
-
-                var from = selection.TopPoint.Line;
-                var to = selection.BottomPoint.Line;
-                // A caret with no selection is not a selection: sharing the line under the
-                // cursor would attach context the user never asked for.
-                if (from == to && selection.IsEmpty) return null;
-
-                var relative = MakeRelative(document.FullName);
-                return "@" + relative + "#" + from + "-" + to;
-            }
-            catch (Exception ex)
-            {
-                Log.Debug("editor: could not read the selection: " + ex.Message);
-                return null;
-            }
-        }
-
         public void OpenDocument(string path, int? line = null)
         {
             ThreadHelper.ThrowIfNotOnUIThread();

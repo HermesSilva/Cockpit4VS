@@ -9,6 +9,18 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.72 — 2026-10-26
+
+- **Added: drop files on the composer.** Dragged from the Windows file manager onto
+  anywhere on the input, their real paths go into the prompt, exactly as pasting the same
+  files does. A drop with no file behind it (an image dragged
+  from a browser) is saved under `%TEMP%\cockpit-drops\` and pointed at instead.
+- **Fixed: copy from the conversation.** The browser's own context menu is off in the panel,
+  so right-click offered nothing, and Ctrl+C on the timeline was unreliable. Selecting text
+  and pressing **Ctrl+C**, or right-clicking it and choosing **Copy**, now copies it.
+- **Removed:** the unused editor-selection plumbing (the composer chip never appeared in
+  Visual Studio, and the host-side reader and message are gone with it).
+
 ## 1.0.71 — 2026-10-22
 
 Reviewed against Claude Code CLI 2.1.287 → 2.1.308. The wire contract is unchanged (the one

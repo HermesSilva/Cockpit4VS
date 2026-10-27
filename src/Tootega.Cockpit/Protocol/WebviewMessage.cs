@@ -175,6 +175,7 @@ namespace Tootega.Cockpit.Protocol
         public const string OpenDiff = "openDiff";
         public const string ResolvePaths = "resolvePaths";
         public const string ReadClipboardFiles = "readClipboardFiles";
+        public const string DropFiles = "dropFiles";
         public const string MentionSearch = "mentionSearch";
         public const string SaveImage = "saveImage";
         public const string TaskDuration = "taskDuration";
@@ -216,8 +217,6 @@ namespace Tootega.Cockpit.Protocol
         public List<ImageAttachment> Images { get; set; }
         /// <summary>Set when the user confirmed past the minimum-effort gate.</summary>
         public bool? Force { get; set; }
-        /// <summary>The @file#a-b reference the composer chip is sharing.</summary>
-        public string Selection { get; set; }
     }
 
     internal sealed class PermissionDecisionPayload
@@ -254,6 +253,24 @@ namespace Tootega.Cockpit.Protocol
     {
         public string Tool { get; set; }
         public JsonElement? Input { get; set; }
+    }
+
+    internal sealed class DropFilesPayload
+    {
+        public string RequestId { get; set; }
+        public List<DroppedFilePayload> Files { get; set; }
+        /// <summary>
+        /// The real paths of the dropped files. Not sent by the page: the host adds them from the
+        /// WebView2 file objects that came with the message (see CockpitWebView).
+        /// </summary>
+        public List<string> Paths { get; set; }
+    }
+
+    internal sealed class DroppedFilePayload
+    {
+        public string Name { get; set; }
+        /// <summary>Base64 content; absent when the file was too large or the path came along.</summary>
+        public string Data { get; set; }
     }
 
     internal sealed class ResolvePathsPayload

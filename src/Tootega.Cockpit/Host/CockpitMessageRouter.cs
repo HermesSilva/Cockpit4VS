@@ -304,6 +304,15 @@ namespace Tootega.Cockpit.Host
                     return;
                 }
 
+                case WebviewMessageKinds.DropFiles:
+                {
+                    // Dropped on the composer: the real paths when WebView2 handed the files over,
+                    // otherwise a saved copy — the same answer a paste gets.
+                    var payload = message.As<DropFilesPayload>();
+                    _host.Post(HostMessages.ResolvedPath(payload.RequestId, JoinResolved(DroppedFiles.Resolve(payload), cwd)), tabId);
+                    return;
+                }
+
                 case WebviewMessageKinds.MentionSearch:
                 {
                     var requestId = message.GetString("requestId");
@@ -519,10 +528,7 @@ namespace Tootega.Cockpit.Host
                 _host.SendConfig();
             }
 
-            // The shared editor selection rides in front of the prompt as context.
-            var body = string.IsNullOrEmpty(payload?.Selection) ? text : payload.Selection + "\n" + text;
-
-            session.Send(body, payload?.Images);
+            session.Send(text, payload?.Images);
             _host.Tabs.ClearDraft(tabId);
         }
 

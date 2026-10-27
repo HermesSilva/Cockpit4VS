@@ -589,8 +589,6 @@ type HostMsg =
   | { kind: 'credsValue'; id: string; name: string; value: string } // the released value, to be injected into the composer
   | { kind: 'credsResult'; ok: boolean; action: string; message?: string } // result of an action
   | { kind: 'credsError'; message: string } // failure (storage unavailable, etc.)
-  // Editor selection/active file to share as @file#a-b (composer toggle).
-  | { kind: 'selection'; ref?: string }
   // @-mention autocomplete: results for the typed query. Each item is a workspace file or a
   // live session (CLI 2.1.232: @name resolves another session and fires SendMessage on submit).
   // `label` is what gets inserted after the '@'; `kind` only decides the icon/style in the list.
@@ -601,6 +599,12 @@ type HostMsg =
 export interface MentionItem {
   label: string;
   kind: 'file' | 'session';
+}
+
+// A file dropped on the composer, as the webview can see it.
+export interface DroppedFile {
+  name: string;
+  data?: string; // base64, no data: prefix
 }
 
 // A slash command's metadata, researched by AI (cached globally in ~/.claude).
@@ -635,9 +639,13 @@ export interface ImageAttachment {
 export type WebviewToHost =
   | { kind: 'init' }
   | { kind: 'heartbeat' } // render liveness beat: prolonged silence = dead renderer (blank screen)
-  | { kind: 'sendMessage'; text: string; images?: ImageAttachment[]; force?: boolean; selection?: string }
+  | { kind: 'sendMessage'; text: string; images?: ImageAttachment[]; force?: boolean }
   | { kind: 'resolvePaths'; requestId: string; absPaths: string[] }
   | { kind: 'readClipboardFiles'; requestId: string }
+  // Files dropped on the composer whose path the drag did not expose (a file from the OS's
+  // explorer). The host answers with resolvedPath: the real path when it can recover it,
+  // otherwise a copy saved from `data` (base64; absent when the file was too large to send).
+  | { kind: 'dropFiles'; requestId: string; files: DroppedFile[] }
   | { kind: 'openLink'; href: string; preview?: boolean }
   | { kind: 'interrupt' }
   | { kind: 'newSession' }

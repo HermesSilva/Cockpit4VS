@@ -83,8 +83,8 @@ does.
 **Human control.** Permission approval with a per-tool preview (Allow / Always / Deny),
 permission modes including plan mode with an editable plan, composed questions
 (`AskUserQuestion`) with tabs and multi-select, side-by-side diffs in the webview or in the
-Visual Studio diff viewer, `@`-mentions with fuzzy file completion, and sharing the current
-editor selection as a chip on the composer.
+Visual Studio diff viewer, `@`-mentions with fuzzy file completion, and files dropped on the
+composer going in as their paths, exactly as pasting them does.
 
 **Transparency.** This is where the Cockpit earns its name, and most of it has no
 equivalent in other Claude Code front-ends:

@@ -339,12 +339,40 @@ namespace Tootega.Cockpit.UI
         {
             try
             {
-                MessageReceived?.Invoke(this, e.WebMessageAsJson);
+                MessageReceived?.Invoke(this, WithDroppedPaths(e));
             }
             catch (Exception ex)
             {
                 Log.Error("Dispatching webview message failed", ex);
             }
+        }
+
+        /// <summary>
+        /// The message as JSON, with the paths of any files that came along with it.
+        ///
+        /// The page cannot see where a dropped file lives; WebView2 can. The shim sends the
+        /// dropped <c>File</c> objects beside the dropFiles message, they arrive here as
+        /// <see cref="CoreWebView2File"/>, and their paths are folded into the message as
+        /// <c>paths</c> so the router answers with the real files, as a paste would.
+        /// </summary>
+        private static string WithDroppedPaths(CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            var json = e.WebMessageAsJson;
+            var objects = e.AdditionalObjects;
+            if (objects == null || objects.Count == 0) return json;
+
+            var paths = new System.Collections.Generic.List<string>();
+            foreach (var item in objects)
+            {
+                if (item is CoreWebView2File file && !string.IsNullOrEmpty(file.Path)) paths.Add(file.Path);
+            }
+
+            var body = json?.Trim();
+            if (paths.Count == 0 || body == null || body.Length < 2 || body[0] != '{') return json;
+
+            var rest = body.Substring(1).TrimStart();
+            var array = System.Text.Json.JsonSerializer.Serialize(paths);
+            return "{\"paths\":" + array + (rest.StartsWith("}", StringComparison.Ordinal) ? "" : ",") + rest;
         }
 
         /// <summary>A link in the conversation opens in the user's browser, never in the panel.</summary>
@@ -418,8 +446,20 @@ namespace Tootega.Cockpit.UI
                 "  var KEY = " + JsString(stateKey) + ";" +
                 "  var state;" +
                 "  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }" +
+                "  var dropped = null;" +
+                "  window.addEventListener('drop', function (e) {" +
+                "    var f = e.dataTransfer && e.dataTransfer.files;" +
+                "    dropped = f && f.length ? Array.prototype.slice.call(f) : null;" +
+                "  }, true);" +
                 "  var api = {" +
-                "    postMessage: function (msg) { vs.postMessage(msg); }," +
+                "    postMessage: function (msg) {" +
+                "      if (msg && msg.kind === 'dropFiles' && dropped && vs.postMessageWithAdditionalObjects) {" +
+                "        var files = dropped; dropped = null;" +
+                "        var lean = Object.assign({}, msg, { files: (msg.files || []).map(function (f) { return { name: f.name }; }) });" +
+                "        try { vs.postMessageWithAdditionalObjects(lean, files); return; } catch (e) {}" +
+                "      }" +
+                "      vs.postMessage(msg);" +
+                "    }," +
                 "    getState: function () { return state; }," +
                 "    setState: function (next) {" +
                 "      state = next;" +

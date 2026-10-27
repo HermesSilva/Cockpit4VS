@@ -64,16 +64,6 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
-        public void Selection_UsesRefKey()
-        {
-            // The webview reads `ref`, which is not a legal C# member name — this is
-            // exactly the kind of mapping that silently breaks.
-            var json = Parse(HostMessages.Selection("src/a.cs#10-20").ToJson());
-
-            Assert.Equal("src/a.cs#10-20", json.GetProperty("ref").GetString());
-        }
-
-        [Fact]
         public void HookInjected_UsesEventKey()
         {
             // `event` is a C# keyword; the parameter is @event and must still serialize bare.
