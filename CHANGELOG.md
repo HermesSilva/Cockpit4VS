@@ -9,6 +9,12 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.74 — 2026-10-26
+
+- **Changed:** a file dragged over the panel is now handled by the composer alone, before any
+  other listener in the page sees it. Nothing changes in Visual Studio; it keeps the shared
+  composer in step with the VS Code extension, where this is what lets a drop work without Shift.
+
 ## 1.0.73 — 2026-10-26
 
 - **Changed: the whole panel accepts dropped files**, not just the input — the paths still go
