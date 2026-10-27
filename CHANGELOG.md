@@ -9,6 +9,13 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.75 — 2026-10-27
+
+- **Changed:** the composer accepts text the host inserts on its own, without a request — the
+  message the VS Code extension uses for files dropped without Shift. Nothing changes in Visual
+  Studio, whose panel receives drops directly; it keeps the shared composer and wire contract in
+  step with the VS Code extension.
+
 ## 1.0.74 — 2026-10-26
 
 - **Changed:** a file dragged over the panel is now handled by the composer alone, before any
