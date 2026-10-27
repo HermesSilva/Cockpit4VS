@@ -9,6 +9,11 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.73 — 2026-10-26
+
+- **Changed: the whole panel accepts dropped files**, not just the input — the paths still go
+  into the prompt.
+
 ## 1.0.72 — 2026-10-26
 
 - **Added: drop files on the composer.** Dragged from the Windows file manager onto
