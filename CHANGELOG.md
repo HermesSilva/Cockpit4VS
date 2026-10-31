@@ -9,6 +9,20 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.76 — 2026-10-31
+
+- **Fixed:** the exported timeline (`.cockpit\TimeLine\*.html` and the HTML export) works in the
+  browser. Tool cards were saved without their content, so they could not be opened; the
+  capture now opens every closed card, captures, and closes exactly those again, leaving the
+  panel as it was. In the file, **Show more / Show less** expands a long prompt, the **copy**
+  buttons copy the prompt's text, the answer's Markdown or a code block, and an attached image
+  enlarges on click (Esc closes).
+- **Fixed:** the same snapshot no longer pins the last prompt over the page, drops buttons that
+  only work inside Visual Studio (rewind, *View*, the file chips), opens external links in a new
+  tab, points file links at the solution folder instead of the `TimeLine` folder, removes the
+  chevron from cards with nothing to open, makes the task checklist collapsible and prints
+  prompts in full. An auto-save overlapping a manual export no longer leaves cards open.
+
 ## 1.0.75 — 2026-10-27
 
 - **Changed:** the composer accepts text the host inserts on its own, without a request — the
