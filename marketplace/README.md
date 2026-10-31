@@ -43,25 +43,29 @@ per run or keep it in `VS_MARKETPLACE_PAT`.
 
 ## Screenshots
 
-The listing has none yet, on purpose: the only screenshots in the family were taken in VS
-Code, and showing VS Code chrome to sell a Visual Studio extension would misrepresent it.
-That reasoning still stands — what changed is only *where the images live* when there are
-some to show.
+The listing uses the family's shared screenshots. They show **only the Cockpit panel**, with
+no editor chrome around it, and the panel is the same React bundle in both IDEs — so the
+same image is true of both listings. They are captured from the real webview bundle by the
+harness in the base repo (`Cockpit/scripts/screenshots/`), not drawn by hand.
+
+What still must not appear here is a picture of a *host's own* UI. `Settings View.png` is VS
+Code's settings page; it stays out of this listing.
 
 **The image folder is shared, and it lives in the base repo:
 `Cockpit/images/`.** There is one copy of each screenshot for the whole family; this repo
 does not keep its own. Markdown here references them by absolute URL:
 
 ```markdown
-![Hub](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Hub.png)
+![Hub](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Main%20Panel.png)
 ```
 
 A relative path cannot work — the file is in a sibling repository, so it resolves to
 nothing on GitHub and nothing on the Marketplace. The absolute URL renders in both.
 
-When Visual Studio screenshots exist, add them to `Cockpit/images/` with a name that marks
-the host (e.g. `Main Panel VS.png`), so the two sets never get confused, and reference them
-from `overview.md` by absolute URL as above.
+An image that only makes sense for Visual Studio goes into `Cockpit/images/` with a name
+that marks the host (e.g. `Main Panel VS.png`), so the two sets never get confused, and is
+referenced from `overview.md` by absolute URL as above. Note the URLs point at the base
+repo's `master`: a new image renders only after it is merged there.
 
 `publishManifest.json` `assetFiles` is **not** a route for this: `pathOnDisk` is resolved
 inside this repository, so it cannot reach the base repo's folder. Use it only for assets

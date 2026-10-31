@@ -7,6 +7,10 @@ loop, the tools, the subagents, the context, the cache, the permissions, MCP, ho
 skills. What it does not have is a place to *see* any of it. That is what the Cockpit is —
 a presentation and control layer over the CLI, native to the IDE you already work in.
 
+![A real turn in the Cockpit: thinking, Grep and Read cards, a task checklist, a permission diff, the test run and the answer](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Hero.gif)
+
+*A real turn, recorded from the Cockpit's own interface: the agent finds a bug, plans the fix, asks before editing, runs the tests and reports.*
+
 > **Unofficial.** Not affiliated with, endorsed by, or sponsored by Anthropic. "Claude",
 > "Claude Code" and "Anthropic" are trademarks of Anthropic, PBC, used here only to describe
 > interoperability. This extension talks to the official Claude Code CLI; it does not bundle
@@ -23,7 +27,17 @@ answer reads like code.
 
 Long sessions stay navigable: a scroll rail marks each of your prompts, `Ctrl+F` searches
 the conversation, and a verbosity filter quiets the timeline without changing anything the
-agent does. When you want the transcript elsewhere, export it to Markdown.
+agent does.
+
+![Timeline with tool cards, a completed task checklist and a markdown answer](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Chat%20Panel.png)
+
+### Take the conversation with you
+
+Every turn is saved to `.cockpit\TimeLine\` as **one self-contained HTML file** that opens in any
+browser: tool cards still open, long prompts still expand, and the copy buttons copy the
+source. Or have the CLI rewrite the conversation as a polished Markdown document.
+
+![The exported HTML timeline in a browser: Show more, an opened Read card, copying the answer](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Exported%20Timeline.gif)
 
 ## Control that arrives before the damage
 
@@ -37,6 +51,12 @@ questions from the agent come as real controls — tabs, multi-select, a free-te
 Mention files with `@` and fuzzy completion, and share the current editor selection as a
 chip on the composer, so the agent reads what you are looking at.
 
+![Permission request with a side-by-side diff of the proposed edit](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Permission.png)
+
+| Composed question | The recorded answer |
+|---|---|
+| ![Composed question with tabs and multi-select](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Question%20View.png) | ![The answered question in the timeline](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Question%20Response.png) |
+
 ## Know what it is spending
 
 A live context window with the tokens left in it, cache life with a warning before it
@@ -45,6 +65,10 @@ room is left before compaction, and no surprise at the end of the month.
 
 Optionally, a local OpenTelemetry receiver aggregates what the CLI itself reports. It
 listens on localhost only, and conversation text is pinned out of telemetry.
+
+| Live session meters | Account and limits |
+|---|---|
+| ![Cockpit Hub with context window, cache, cost and saved contexts](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Main%20Panel.png) | ![Account and usage: session and weekly limits, per-model breakdown](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Session%20Statistics%20View.png) |
 
 ## Written for people who write
 
@@ -64,6 +88,8 @@ conversation runs, and clicking it moves the conversation somewhere else.
 
 The **Cockpit Hub** is the other half — every saved context, the account, the plugins, MCP,
 skills and the consumption, in one place. It is one click from the title bar.
+
+![The live task checklist and the activity gauge while the tests run](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Tasks%20View.png)
 
 ## Keys where keys belong
 

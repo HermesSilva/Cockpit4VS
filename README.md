@@ -13,6 +13,10 @@ permissions, MCP, hooks and skills — **lives in the CLI**. The extension rende
 stream the CLI emits and implements the client side of its interactive protocols. It never
 reimplements orchestration.
 
+![A real turn in the Cockpit: thinking, Grep and Read cards, a task checklist, a permission diff, the test run and the answer](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Hero.gif)
+
+*A real turn, recorded from the Cockpit's own interface: the agent finds a bug, plans the fix, asks before editing, runs the tests and reports.*
+
 | | |
 |---|---|
 | **Author** | Tootega Pesquisa e Inovação |
@@ -27,6 +31,16 @@ reimplements orchestration.
 This is a conversion of the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=HermesSilva.tootega-cockpit)
 of the same name. The React webview is *the same bundle*; what changed is the host around
 it. See [`docs/architecture.md`](docs/architecture.md) for how that works.
+
+### Screenshots
+
+| | |
+|---|---|
+| ![Permission with diff](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Permission.png)<br>**Approve with the diff in view** | ![Account and usage](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Session%20Statistics%20View.png)<br>**Real limits and per-model cost** |
+| ![Expanded Read card](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Expanded%20Element%20View.png)<br>**Code that reads like code** | ![Exported HTML timeline](https://raw.githubusercontent.com/HermesSilva/Cockpit/master/images/Exported%20Timeline.gif)<br>**A transcript that still works in a browser** |
+
+The screenshots are shared with the VS Code extension — they show only the Cockpit panel,
+which is the same bundle in both IDEs.
 
 ---
 

@@ -9,6 +9,16 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.77 — 2026-10-31
+
+- **Changed:** the Marketplace page and the README now show the Cockpit in action — a recorded
+  turn at the top and screenshots of the timeline, the permission diff, composed questions,
+  usage and limits, and the exported timeline in a browser. They show only the Cockpit panel,
+  which is the same interface in Visual Studio. The overview also stops saying the transcript
+  exports only to Markdown: the self-contained HTML export is there too.
+- **Fixed:** in code blocks, a long language label (`TYPESCRIPT`, `POWERSHELL`) no longer runs
+  under the copy button.
+
 ## 1.0.76 — 2026-10-31
 
 - **Fixed:** the exported timeline (`.cockpit\TimeLine\*.html` and the HTML export) works in the
