@@ -168,6 +168,15 @@ namespace Tootega.Cockpit.Protocol
                 ("trigger", trigger), ("durationMs", durationMs));
 
         /// <summary>
+        /// Context guard (save + /compact past the threshold). One banner per run (`id`),
+        /// updated at each phase. Numbers and a reason CODE travel raw; the webview words them.
+        /// </summary>
+        public static HostMessage ContextGuard(Tootega.Cockpit.Session.GuardNotice n) =>
+            new HostMessage("contextGuard", ("id", n.Id), ("phase", n.Phase), ("pct", n.Pct),
+                ("threshold", n.Threshold), ("pre", n.Pre), ("post", n.Post),
+                ("resumed", n.Resumed ? (object)true : null), ("reason", n.Reason), ("detail", n.Detail));
+
+        /// <summary>
         /// The tab was handed to an interactive Remote Control session. `phase` reports
         /// what is KNOWN, not what was hoped for: spawning a terminal is not proof the
         /// session came up.

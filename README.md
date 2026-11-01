@@ -113,6 +113,13 @@ equivalent in other Claude Code front-ends:
 - **A counter that outlives the session.** All-time tokens sent, received and total across
   every project on this machine, with a per-day history, built from an incremental rollup of
   the CLI's transcripts.
+- **A context guard that proves before it compacts.** Past 80% of the window (checked on
+  every API call, mid-turn included) Claude is asked, inside the running turn, to save what it
+  needs to resume — following the repository's directives, and its context-saving skill if it
+  has one — and to end with a line whose format and value the Cockpit dictates. Only that exact
+  line unlocks `/compact`, the compaction counts only when the CLI reports the context shrank,
+  and the paused task is then resumed. Anything else stops it **without** compacting and says
+  why. On by default; switch and threshold in `Tools > Options > Tootega Cockpit > Session`.
 - **Session activity.** Duration, turn count, and **peak** context — the high-water mark,
   not just the current reading, so the spike that triggered compaction stays visible.
 - Subscription limits (session, weekly, per-model) read from the same OAuth `/usage` API the

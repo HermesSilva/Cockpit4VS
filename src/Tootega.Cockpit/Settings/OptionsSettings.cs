@@ -33,6 +33,8 @@ namespace Tootega.Cockpit.Settings
         public bool NotifyOnComplete => _options.NotifyOnComplete;
         public bool ShowThinking => _options.ShowThinking;
         public bool ExpandToolCards => _options.ExpandToolCards;
+        public bool ContextGuardEnabled => _options.ContextGuardEnabled;
+        public int ContextGuardThreshold => _options.ContextGuardThreshold;
         public string Verbosity => _options.Verbosity;
         public bool SpellCheck => _options.SpellCheck;
         public string UserName => _options.UserName;

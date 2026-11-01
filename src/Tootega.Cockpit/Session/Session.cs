@@ -111,6 +111,55 @@ namespace Tootega.Cockpit.Session
             _statsStore = statsStore ?? new StatsStore();
             _skillIndex = skillIndex ?? new SkillBodyIndex();
             Stats = NewStats();
+            _guard = new ContextGuard(new GuardIO(this), () =>
+            {
+                var c = _hooks.ContextGuard?.Invoke() ?? new GuardConfig { Enabled = false };
+                // The local engine has no Claude /compact: the guard would ask for something it can't do.
+                return Engine() == "tootega" ? new GuardConfig { Enabled = false, Threshold = c.Threshold } : c;
+            });
+        }
+
+        /// <summary>Saves the state and compacts when the context passes the threshold.</summary>
+        private readonly ContextGuard _guard;
+
+        /// <summary>The guard's hands on this session.</summary>
+        private sealed class GuardIO : IGuardIO
+        {
+            private readonly Session _s;
+            public GuardIO(Session s) { _s = s; }
+
+            /// <summary>
+            /// newTurn: the session is idle, so the message opens a turn and is accounted for as
+            /// one (busy + stopwatch), exactly like Send. Otherwise a turn is running and the
+            /// message rides inside it: the CLI hands it to the model at the next tool boundary
+            /// and the turn still ends in ONE result, so nothing here may count a second turn.
+            /// </summary>
+            public void Send(string text, bool newTurn)
+            {
+                if (newTurn)
+                {
+                    _s.EnsureCli();
+                    _s.SetBusy(true);
+                    _s.Stats.BeginTurn();
+                }
+                if (_s.Cli == null) return;
+                var first = text.Split('\n')[0];
+                Tootega.Cockpit.Util.Log.Info("[session] guard -> CLI (" + (newTurn ? "new turn" : "mid-turn") + "): " +
+                         (first.Length > 120 ? first.Substring(0, 120) : first));
+                _s.Cli.SendUserMessage(text);
+            }
+
+            public void Notify(GuardNotice notice) => _s.Emit(HostMessages.ContextGuard(notice));
+
+            public string Nonce()
+            {
+                var bytes = new byte[4];
+                using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create()) rng.GetBytes(bytes);
+                return BitConverter.ToString(bytes).Replace("-", string.Empty).ToLowerInvariant();
+            }
+
+            public void Log(string message) =>
+                Tootega.Cockpit.Util.Log.Info("[session] " + message + " (" + (_s.SessionId ?? _s.ResumeId ?? "?") + ")");
         }
 
         /// <summary>
@@ -216,6 +265,7 @@ namespace Tootega.Cockpit.Session
             // So the process aborted mid-turn without emitting a result, and without a warning
             // the indicator would simply vanish while the user believes it is still running.
             var abortedMidTurn = Busy;
+            _guard.Reset(); // the process a guard run was talking to is gone
 
             if (abortedMidTurn)
             {
@@ -315,6 +365,7 @@ namespace Tootega.Cockpit.Session
 
         public void Interrupt()
         {
+            _guard.OnUserInterrupt(); // Stop also stops a guard run: nothing is compacted after it
             Cli?.Interrupt();
             Stats.EndTurn();
             Persist();
@@ -326,6 +377,9 @@ namespace Tootega.Cockpit.Session
         /// <summary>Stops the process but keeps the statistics. The next message respawns it.</summary>
         public void Stop()
         {
+            // A guard run belongs to this process: a respawn (model/effort change, new
+            // conversation) must not inherit a half-done save or compaction.
+            _guard.Reset();
             ResetStreamingState();
             _pendingPermissions.Clear();
             // Closes the turn in flight, so idle time after it is not counted as work.
@@ -582,7 +636,17 @@ namespace Tootega.Cockpit.Session
                 return;
             }
 
-            Emit(HostMessages.Stats(Stats.Ingest(value)));
+            var snap = Stats.Ingest(value);
+            Emit(HostMessages.Stats(snap));
+
+            // Every API call (also mid-turn) carries the real prompt size: that is where the
+            // guard measures, not only at the end of the turn — one turn can be the whole problem.
+            if (value.Type == EventTypes.StreamEvent && value.Event?.ValueKind == JsonValueKind.Object &&
+                ReadString(value.Event.Value, "type") == "message_start")
+            {
+                _guard.OnApiCall();
+                _guard.OnContext(snap.ContextUsed, snap.ContextLimit, Busy, _compacting);
+            }
 
             // A skill body that just entered the context becomes a seal on its card.
             foreach (var load in Stats.TakeSkillLoads())
@@ -658,7 +722,14 @@ namespace Tootega.Cockpit.Session
                 {
                     var status = ReadExtraString(value, "status");
                     if (status == "compacting") SetCompacting(true);
-                    else if (HasExtra(value, "compact_result") || HasExtra(value, "compact_error")) SetCompacting(false);
+                    else if (HasExtra(value, "compact_result") || HasExtra(value, "compact_error"))
+                    {
+                        SetCompacting(false);
+                        // The only trustworthy verdict on a compaction: a blocked one still ends
+                        // the turn with a successful result (measured with a PreCompact hook).
+                        var error = ReadExtraString(value, "compact_error");
+                        _guard.OnCompactStatus(ReadExtraString(value, "compact_result") == "success" && string.IsNullOrEmpty(error), error);
+                    }
                     return;
                 }
 
@@ -669,6 +740,16 @@ namespace Tootega.Cockpit.Session
                     // data, which reads as a flicker in the timeline.
                     _compacting = false;
                     EmitCompactBoundary(raw);
+                    if (raw.TryGetProperty("compact_metadata", out var meta) || raw.TryGetProperty("compactMetadata", out meta))
+                    {
+                        _guard.OnCompactBoundary(ReadString(meta, "trigger"),
+                            ReadLong(meta, "pre_tokens") ?? ReadLong(meta, "preTokens"),
+                            ReadLong(meta, "post_tokens") ?? ReadLong(meta, "postTokens"));
+                    }
+                    else
+                    {
+                        _guard.OnCompactBoundary(null, null, null);
+                    }
                     return;
 
                 case "init":
@@ -879,6 +960,22 @@ namespace Tootega.Cockpit.Session
             SetBusy(false);
             _hooks.OnResult?.Invoke();
             ResetStreamingState();
+
+            // Last, once the turn is fully closed: the guard may open the next turn itself
+            // (/compact, the retry, the resume) or announce that the CLI will run a queued one.
+            var action = _guard.OnResult(value.Result ?? string.Empty, value.IsError == true);
+            if (action == GuardResultAction.ExpectQueuedTurn)
+            {
+                // The guard's message is still in the CLI's queue and runs now as a turn we did
+                // not start with Send: own it, or its result would be discarded as a stray.
+                SetBusy(true);
+                Stats.BeginTurn();
+            }
+            else if (!Busy)
+            {
+                var s = Stats.Snapshot();
+                _guard.OnContext(s.ContextUsed, s.ContextLimit, false, _compacting);
+            }
         }
 
         /// <summary>

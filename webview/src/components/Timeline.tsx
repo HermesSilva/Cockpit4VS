@@ -633,7 +633,48 @@ function HookBanner({ item, t }: { item: HookItem; t: Translator }) {
  * An engine notice mid-session: fast-mode credits exhausted, a restricted subagent model
  * running on the parent's model. Without this strip the user would only see the effect.
  */
+// Reason codes the host sends with a failed/canceled guard run, worded here.
+const GUARD_REASON = {
+  'no-confirmation': 'guard.reason.no-confirmation',
+  'turn-error': 'guard.reason.turn-error',
+  'compact-error': 'guard.reason.compact-error',
+  'no-compaction': 'guard.reason.no-compaction',
+  interrupted: 'guard.reason.interrupted',
+  restarted: 'guard.reason.restarted',
+} as const;
+
+/** One context-guard run, as a single banner updated through its phases. */
+function GuardBanner({ item, t }: { item: NoticeItem; t: Translator }) {
+  const g = item.guard!;
+  const sizes = g.pre !== undefined && g.post !== undefined ? `${fmtTk(g.pre)} → ${fmtTk(g.post)}` : '';
+  const reason = t(GUARD_REASON[g.reason as keyof typeof GUARD_REASON] ?? 'guard.reason.no-compaction');
+  const text =
+    g.phase === 'saving'
+      ? t('guard.saving', g.pct, g.threshold)
+      : g.phase === 'retrying'
+        ? t('guard.retrying')
+        : g.phase === 'compacting'
+          ? t('guard.compacting')
+          : g.phase === 'done'
+            ? t(g.resumed ? 'guard.doneResumed' : 'guard.done', sizes).replace(/\s+—/, ' —').trim()
+            : g.phase === 'failed'
+              ? t('guard.failed', reason) + (g.detail ? ` — ${g.detail}` : '')
+              : t('guard.canceled', reason);
+  const running = g.phase === 'saving' || g.phase === 'retrying' || g.phase === 'compacting';
+  return (
+    <div className={`notice-banner guard-banner guard-${g.phase}`} id={`msg-${item.id}`} role="status">
+      <span className="notice-banner-mark">
+        {running ? <span className="guard-spin" aria-hidden="true" /> : g.phase === 'done' ? '✓' : '⚠'}
+      </span>
+      <span className="notice-banner-label">{t('guard.label')}</span>
+      <span className="notice-banner-text">{text}</span>
+      {item.ts && <span className="notice-banner-time">{fmtStamp(item.ts)}</span>}
+    </div>
+  );
+}
+
 function NoticeBanner({ item, t }: { item: NoticeItem; t: Translator }) {
+  if (item.guard) return <GuardBanner item={item} t={t} />;
   // The compaction boundary: not a warning, but the MEASURE of what left the context.
   const c = item.compaction;
   if (c) {

@@ -86,5 +86,11 @@ namespace Tootega.Cockpit.Session
         /// <see cref="ExtraSystemPrompt"/>.
         /// </summary>
         public Func<string> QuietPrompt { get; set; }
+
+        /// <summary>
+        /// Context-guard settings (save + /compact past the threshold). Read on every
+        /// measurement, so an options change applies to running windows. Null = guard off.
+        /// </summary>
+        public Func<GuardConfig> ContextGuard { get; set; }
     }
 }
