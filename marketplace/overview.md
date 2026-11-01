@@ -63,6 +63,12 @@ A live context window with the tokens left in it, cache life with a warning befo
 expires, cost per session, turns, compactions, and cache hit rates. No guessing how much
 room is left before compaction, and no surprise at the end of the month.
 
+When the window passes **80%**, the **context guard** steps in — even in the middle of a turn. It
+asks Claude to save what it needs to resume, following your repository's directives, and to
+confirm with a line whose format and value the Cockpit dictates. Only that exact confirmation
+unlocks the compaction, and the paused task picks up where it left off. If anything is off, it
+stops without compacting and tells you why.
+
 Optionally, a local OpenTelemetry receiver aggregates what the CLI itself reports. It
 listens on localhost only, and conversation text is pinned out of telemetry.
 

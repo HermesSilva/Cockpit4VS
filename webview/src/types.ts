@@ -76,6 +76,17 @@ export interface NoticeItem {
   // The compaction boundary (S11): the banner says how much was condensed, worded here —
   // the host sends raw numbers, since it has no i18n layer of its own for the timeline.
   compaction?: { pre?: number; post?: number; trigger?: string; durationMs?: number };
+  // Context guard run (save + /compact past the threshold): one banner, updated per phase.
+  guard?: {
+    phase: 'saving' | 'retrying' | 'compacting' | 'done' | 'failed' | 'canceled';
+    pct: number;
+    threshold: number;
+    pre?: number;
+    post?: number;
+    resumed?: boolean;
+    reason?: string;
+    detail?: string;
+  };
 }
 
 export type TimelineItem = UserItem | AssistantItem | ToolItem | HookItem | NoticeItem;

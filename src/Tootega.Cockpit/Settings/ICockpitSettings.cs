@@ -30,6 +30,9 @@ namespace Tootega.Cockpit.Settings
         bool NotifyOnComplete { get; }
         bool ShowThinking { get; }
         bool ExpandToolCards { get; }
+        bool ContextGuardEnabled { get; }
+        /// <summary>Percent of the context window (50-95).</summary>
+        int ContextGuardThreshold { get; }
         string Verbosity { get; }
         bool SpellCheck { get; }
         string UserName { get; }

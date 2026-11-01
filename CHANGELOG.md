@@ -9,6 +9,22 @@ of builds it took to get there.
 
 ## Unreleased
 
+## 1.0.78 — 2026-10-31
+
+- **Added:** context guard. When the context window passes **80%** — checked on every API call,
+  so also in the middle of a long turn — Claude is asked, inside the running turn, to save what
+  it needs to resume the work (following the repository's directives for memory and docs, and
+  its context-saving skill if it has one) and to end its reply with a line whose format and
+  value the Cockpit dictates. Only that exact line unlocks the compaction: the Cockpit then
+  sends `/compact`, counts it as done only when the CLI reports that the context actually
+  shrank, and asks Claude to resume the task it paused. A single banner in the timeline follows
+  the run — saving, compacting, compacted (with the sizes), or stopped and why.
+- **Added:** without a valid confirmation (after one stricter retry), with a compaction the CLI
+  refused, or when you press Stop, the guard stops **without** compacting and tries again only
+  after the context grows a few more points. The CLI's own auto-compaction stays as the safety
+  net. On by default; **Tools > Options > Tootega Cockpit > Session** has the switch and the
+  threshold (50–95, default 80).
+
 ## 1.0.77 — 2026-10-31
 
 - **Changed:** the Marketplace page and the README now show the Cockpit in action — a recorded

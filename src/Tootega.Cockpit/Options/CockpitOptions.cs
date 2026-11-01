@@ -81,6 +81,16 @@ namespace Tootega.Cockpit.Options
         public bool EnableTodoTools { get; set; } = false;
 
         [Category(CatSession)]
+        [DisplayName("Context guard")]
+        [Description("When the context window passes the threshold, Claude is asked — even mid-turn — to save what it needs to resume (following the repository's directives, and its context-saving skill if it has one) and to confirm with a line whose format and value the Cockpit dictates. Only after that confirmation is the conversation compacted (/compact), and a paused task is resumed.")]
+        public bool ContextGuardEnabled { get; set; } = true;
+
+        [Category(CatSession)]
+        [DisplayName("Context guard threshold (%)")]
+        [Description("Context-guard threshold, as a percentage of the context window (50-95). Default 80.")]
+        public int ContextGuardThreshold { get; set; } = 80;
+
+        [Category(CatSession)]
         [DisplayName("Auto-resume last session")]
         [Description("On opening a solution, resume the most recent session for that directory.")]
         public bool AutoResumeLastSession { get; set; } = true;

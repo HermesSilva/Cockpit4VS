@@ -312,6 +312,12 @@ namespace Tootega.Cockpit.Host
                 AskLanguage = () => Blank(_settings.VoiceLanguage),
                 ExtraSystemPrompt = () => ExtraSystemPrompt(tabId),
                 QuietPrompt = () => Blank(_settings.QuietPrompt),
+                // Read on every measurement, so an options change applies to open windows.
+                ContextGuard = () => new GuardConfig
+                {
+                    Enabled = _settings.ContextGuardEnabled,
+                    Threshold = _settings.ContextGuardThreshold / 100.0,
+                },
             };
 
             var session = new CockpitSession(hooks, _statsStore, _skillIndex);
