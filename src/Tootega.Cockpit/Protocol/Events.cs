@@ -19,6 +19,8 @@ namespace Tootega.Cockpit.Protocol
         [JsonPropertyName("output_tokens")] public long? OutputTokens { get; set; }
         [JsonPropertyName("cache_creation_input_tokens")] public long? CacheCreationInputTokens { get; set; }
         [JsonPropertyName("cache_read_input_tokens")] public long? CacheReadInputTokens { get; set; }
+        /// <summary>"fast" when the request ran in fast mode, which bills at the fast rate.</summary>
+        [JsonPropertyName("speed")] public string Speed { get; set; }
     }
 
     /// <summary>

@@ -43,13 +43,15 @@ namespace Tootega.Cockpit.Stats
         // rows broke the family pricing: the 5.5 pair is cheaper per token (CLI 2.1.280/2.1.284),
         // and the cache reads of Sonnet 5.5 ($0.10, 2.1.296), Opus 5.5 ($0.20) and Fable 5.1
         // ($0.25) are flat rather than 0.1x input. Haiku 5.5 (2.1.293) is the first row with a
-        // long-prompt tier.
+        // long-prompt tier. Fable/Mythos 5.2 (2.1.321) is cheaper than 5.1: $8/$40, cache
+        // read $0.20.
         private static readonly List<KeyValuePair<Regex, TokenPrice>> Prices =
             new List<KeyValuePair<Regex, TokenPrice>>
             {
                 Price("opus-5-5", 4, 20, 5, 0.2),
                 Price("sonnet-5-5", 2, 10, 2.5, 0.1),
                 LongPromptTier(Price("haiku-5-5", 0.1, 0.5, 0.125, 0.01), 100_000, 0.5, 2.5, 0.625, 0.05),
+                Price("(?:fable|mythos)-5-2", 8, 40, 10, 0.2),
                 Price("(?:fable|mythos)-5-1", 10, 50, 12.5, 0.25),
                 Price("opus", 5, 25, 6.25, 0.5),
                 Price("sonnet", 3, 15, 3.75, 0.3),
@@ -59,6 +61,19 @@ namespace Tootega.Cockpit.Stats
 
         private static readonly TokenPrice DefaultPrice =
             new TokenPrice { Input = 5, Output = 25, CacheWrite = 6.25, CacheRead = 0.5 };
+
+        // Fast mode rates, applied when the request's usage says `speed: "fast"` — the same
+        // rule the CLI prices by (tables read from the 2.1.321 binary). Not a flat 2x: the
+        // cache read is $0.40 on both 5.x rows. A model without a row here falls back to its
+        // standard price, as in the CLI.
+        private static readonly List<KeyValuePair<Regex, TokenPrice>> FastPrices =
+            new List<KeyValuePair<Regex, TokenPrice>>
+            {
+                Price("(?:fable|mythos)-5-2", 16, 80, 20, 0.4),
+                Price("opus-5-5", 8, 40, 10, 0.4),
+                Price(@"opus-(?:5|4-8)\b", 10, 50, 12.5, 1),
+                Price(@"opus-4-[67]\b", 30, 150, 37.5, 3),
+            };
 
         private static KeyValuePair<Regex, TokenPrice> Price(string pattern, double input, double output,
                                                              double cacheWrite, double cacheRead)
@@ -82,11 +97,19 @@ namespace Tootega.Cockpit.Stats
         /// The model's price, at the tier a request of <paramref name="promptTokens"/> (input +
         /// cache write + cache read) is billed at. The CLI applies a long-prompt tier to the
         /// WHOLE request, output included, once the prompt passes the threshold — so the caller
-        /// passes the request's own prompt size, never a session total.
+        /// passes the request's own prompt size, never a session total. <paramref name="speed"/>
+        /// is the request's <c>usage.speed</c>.
         /// </summary>
-        public static TokenPrice PriceFor(string model, long promptTokens = 0)
+        public static TokenPrice PriceFor(string model, long promptTokens = 0, string speed = null)
         {
             if (string.IsNullOrEmpty(model)) return DefaultPrice;
+            if (speed == "fast")
+            {
+                foreach (var entry in FastPrices)
+                {
+                    if (entry.Key.IsMatch(model)) return entry.Value;
+                }
+            }
             foreach (var entry in Prices)
             {
                 if (!entry.Key.IsMatch(model)) continue;
@@ -105,7 +128,7 @@ namespace Tootega.Cockpit.Stats
             var input = Num(usage.InputTokens);
             var create = Num(usage.CacheCreationInputTokens);
             var read = Num(usage.CacheReadInputTokens);
-            var price = PriceFor(model, input + create + read);
+            var price = PriceFor(model, input + create + read, usage.Speed);
             return (input * price.Input
                     + create * price.CacheWrite
                     + read * price.CacheRead

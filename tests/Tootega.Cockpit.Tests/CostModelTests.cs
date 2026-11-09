@@ -54,6 +54,45 @@ namespace Tootega.Cockpit.Tests
         }
 
         [Fact]
+        public void FableFivePointTwoHasItsOwnPrice()
+        {
+            // CLI 2.1.321: $8/$40, cache read $0.20 — not the family's $10/$50 and $1.
+            var million = new Usage
+            {
+                InputTokens = 1_000_000,
+                OutputTokens = 1_000_000,
+                CacheCreationInputTokens = 1_000_000,
+                CacheReadInputTokens = 1_000_000,
+            };
+
+            Assert.Equal(58.2, CostModel.EstimateCost(million, "claude-fable-5-2"), 6);
+            Assert.Equal(58.2, CostModel.EstimateCost(million, "claude-fable-5-2[1m]"), 6);
+            Assert.Equal(58.2, CostModel.EstimateCost(million, "claude-mythos-5-2"), 6);
+        }
+
+        [Fact]
+        public void FastModeBillsAtTheClisFastTable()
+        {
+            Usage Million(string speed) => new Usage
+            {
+                InputTokens = 1_000_000,
+                OutputTokens = 1_000_000,
+                CacheCreationInputTokens = 1_000_000,
+                CacheReadInputTokens = 1_000_000,
+                Speed = speed,
+            };
+
+            // Fable 5.2: 16 + 80 + 20 + 0.4; Opus 5.5: 8 + 40 + 10 + 0.4; Opus 5/4.8: 10 + 50 + 12.5 + 1.
+            Assert.Equal(116.4, CostModel.EstimateCost(Million("fast"), "claude-fable-5-2"), 6);
+            Assert.Equal(58.4, CostModel.EstimateCost(Million("fast"), "claude-opus-5-5"), 6);
+            Assert.Equal(73.5, CostModel.EstimateCost(Million("fast"), "claude-opus-5"), 6);
+            Assert.Equal(73.5, CostModel.EstimateCost(Million("fast"), "claude-opus-4-8"), 6);
+            // A model with no fast rate, and a standard-speed request, keep the normal price.
+            Assert.Equal(14.6, CostModel.EstimateCost(Million("fast"), "claude-sonnet-5-5"), 6);
+            Assert.Equal(58.2, CostModel.EstimateCost(Million("standard"), "claude-fable-5-2"), 6);
+        }
+
+        [Fact]
         public void HaikuFivePointFiveBillsTheWholeRequestAtTheLongTierPastOneHundredK()
         {
             // CLI 2.1.293. Exactly 100K of prompt stays on the short tier.
