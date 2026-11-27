@@ -66,7 +66,8 @@ namespace Tootega.Cockpit.Host
             switch (message.Kind)
             {
                 case WebviewMessageKinds.Init:
-                    await OnInitAsync(tabId);
+                    // origin is the conversation's own window; null is the hub.
+                    await OnInitAsync(tabId, fromOwnWindow: _host.Tabs.Has(origin));
                     return;
 
                 case WebviewMessageKinds.Heartbeat:
@@ -444,7 +445,7 @@ namespace Tootega.Cockpit.Host
 
         // ---- Handlers ----
 
-        private async Task OnInitAsync(string tabId)
+        private async Task OnInitAsync(string tabId, bool fromOwnWindow)
         {
             _host.Post(HostMessages.Ready());
             _host.SendConfig();
@@ -453,8 +454,10 @@ namespace Tootega.Cockpit.Host
             _host.PostTaskTimings(tabId);
 
             // A freshly mounted panel always replays, even mid-turn: otherwise reopening a
-            // running conversation would show only what arrives afterwards.
-            _host.ReplayTab(tabId, force: true);
+            // running conversation would show only what arrives afterwards. "Loaded, empty" for a
+            // tab with no session yet only when its OWN window mounted (it has nothing to lose);
+            // a hub mount would wipe a first prompt that window is already showing.
+            _host.ReplayTab(tabId, force: true, announceEmpty: fromOwnWindow);
 
             var draft = _host.Tabs.Draft(tabId);
             if (!string.IsNullOrEmpty(draft)) _host.Post(HostMessages.DraftRestore(draft), tabId);

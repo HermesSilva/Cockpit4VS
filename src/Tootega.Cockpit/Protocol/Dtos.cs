@@ -593,7 +593,7 @@ namespace Tootega.Cockpit.Protocol
     /// </summary>
     internal sealed class HistoryItem
     {
-        /// <summary>user | assistant | tool</summary>
+        /// <summary>user | assistant | tool | notice</summary>
         public string Kind { get; set; }
         public string Id { get; set; }
 
@@ -610,6 +610,35 @@ namespace Tootega.Cockpit.Protocol
         public JsonElement? Input { get; set; }
         public JsonElement? Result { get; set; }
         public bool? IsError { get; set; }
+
+        // notice — rebuilt from the transcript so a reopened session shows the banners a live one
+        // did: a compaction boundary and a context-guard run (same shape as the live NoticeItem).
+        public string Topic { get; set; }
+        public HistoryCompaction Compaction { get; set; }
+        public HistoryGuard Guard { get; set; }
+    }
+
+    /// <summary>A compaction boundary's numbers, raw: the webview does the prose.</summary>
+    internal sealed class HistoryCompaction
+    {
+        public long? Pre { get; set; }
+        public long? Post { get; set; }
+        public string Trigger { get; set; }
+        public double? DurationMs { get; set; }
+    }
+
+    /// <summary>A context-guard run rebuilt from the transcript. Wire names are the TS ones.</summary>
+    internal sealed class HistoryGuard
+    {
+        /// <summary>saving | retrying | compacting | done | failed | canceled</summary>
+        public string Phase { get; set; }
+        public int Pct { get; set; }
+        public int Threshold { get; set; }
+        public long? Pre { get; set; }
+        public long? Post { get; set; }
+        /// <summary>Null rather than false, so the wire omits it like the live banner does.</summary>
+        public bool? Resumed { get; set; }
+        public string Reason { get; set; }
     }
 
     // --- Questions and permissions ---
