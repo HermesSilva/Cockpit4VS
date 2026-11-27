@@ -419,7 +419,13 @@ namespace Tootega.Cockpit.Host
         /// would show only what arrives afterwards, and the deltas in flight would append to
         /// nothing.
         /// </summary>
-        internal void ReplayTab(string tabId, bool force = false)
+        /// <param name="announceEmpty">
+        /// With no session yet, whether a forced replay still says "history loaded, empty". Off when
+        /// the HUB mounted: that message reaches the conversation's own window too, and during the
+        /// seconds before the CLI's init — a first prompt already on screen, no session id yet — it
+        /// wiped that prompt from the timeline.
+        /// </param>
+        internal void ReplayTab(string tabId, bool force = false, bool announceEmpty = true)
         {
             if (!_tabs.Has(tabId)) return;
 
@@ -428,7 +434,7 @@ namespace Tootega.Cockpit.Host
 
             if (sessionId == null)
             {
-                if (force) Post(HostMessages.History(new List<HistoryItem>()), tabId);
+                if (force && announceEmpty) Post(HostMessages.History(new List<HistoryItem>()), tabId);
                 return;
             }
 

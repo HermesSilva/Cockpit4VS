@@ -31,6 +31,13 @@ namespace Tootega.Cockpit.Session
         private static readonly Regex SentenceEnd = new Regex(@"(?<=[.!?])\s|\n", RegexOptions.Compiled);
         private static readonly Regex TrailingWord = new Regex(@"\s+\S*$", RegexOptions.Compiled);
 
+        // The guard's save request carries the run's numbers: "... is 80% full (limit 80%)".
+        private static readonly Regex GuardSave = new Regex(
+            @"\[Cockpit context guard\] The context window is (\d+)% full \(limit (\d+)%\)", RegexOptions.Compiled);
+        private static readonly Regex GuardNonce = new Regex(
+            Regex.Escape(ContextGuard.Sentinel) + @" (\S+)\s*$", RegexOptions.Compiled);
+        private static readonly string GuardResume = ContextGuard.GuardTag + " The context was compacted.";
+
         private readonly string _projectsRoot;
         private int _generatedIdSequence;
 
@@ -338,7 +345,8 @@ namespace Tootega.Cockpit.Session
                     if (string.IsNullOrEmpty(firstUser))
                     {
                         var text = TextOfContent(MessageContent(root));
-                        if (!IsMetaUserText(text)) firstUser = Clean(text);
+                        if (!IsMetaUserText(text) && !IsGuardText(text) && !IsTrue(root, "isCompactSummary"))
+                            firstUser = Clean(text);
                     }
                 }
                 else if (type == "assistant")
@@ -393,11 +401,18 @@ namespace Tootega.Cockpit.Session
         /// <summary>Rebuilds the transcript items used to replay history on resume.</summary>
         public IReadOnlyList<HistoryItem> LoadTranscript(string cwd, string sessionId)
         {
+            return ParseTranscript(ReadLines(TranscriptPath(cwd, sessionId)));
+        }
+
+        /// <summary>The transcript's JSONL lines turned into history items (no I/O, unit-testable).</summary>
+        public IReadOnlyList<HistoryItem> ParseTranscript(IEnumerable<string> lines)
+        {
             var items = new List<HistoryItem>();
             var toolIndex = new Dictionary<string, HistoryItem>();
             var assistantIndex = new Dictionary<string, HistoryItem>();
+            var guard = new GuardReplay(items, GenerateId);
 
-            foreach (var line in ReadLines(TranscriptPath(cwd, sessionId)))
+            foreach (var line in lines)
             {
                 JsonElement root;
                 try
@@ -415,14 +430,161 @@ namespace Tootega.Cockpit.Session
                 if (root.TryGetProperty("isMeta", out var meta) && meta.ValueKind == JsonValueKind.True) continue;
 
                 var type = ReadString(root, "type");
-                if (type == "user") ReplayUserLine(root, items, toolIndex);
+
+                // Compaction boundary: the S11 banner, with the same numbers the live event carried.
+                if (type == "system" && ReadString(root, "subtype") == "compact_boundary")
+                {
+                    guard.Boundary(root);
+                    continue;
+                }
+
+                // The summary the CLI writes after compacting is context for the model, not a prompt.
+                if (IsTrue(root, "isCompactSummary")) continue;
+
+                // A message written while a turn runs is delivered inside it and recorded as a queued
+                // command — the only trace a mid-turn save request leaves. Matched on that record,
+                // never on free text: a tool result can quote the guard's wording without being it.
+                if (type == "attachment")
+                {
+                    if (root.TryGetProperty("attachment", out var attachment) &&
+                        attachment.ValueKind == JsonValueKind.Object &&
+                        ReadString(attachment, "type") == "queued_command" &&
+                        attachment.TryGetProperty("prompt", out var prompt))
+                    {
+                        var text = TextOfContent(prompt).Trim();
+                        if (IsGuardText(text)) guard.Message(text, root);
+                    }
+                    continue;
+                }
+
+                if (type == "user") ReplayUserLine(root, items, toolIndex, guard);
                 else if (type == "assistant") ReplayAssistantLine(root, items, toolIndex, assistantIndex);
             }
 
+            guard.Settle();
             return items;
         }
 
-        private void ReplayUserLine(JsonElement root, List<HistoryItem> items, Dictionary<string, HistoryItem> toolIndex)
+        /// <summary>True for a message the context guard wrote (save, retry, resume).</summary>
+        public static bool IsGuardText(string text) =>
+            !string.IsNullOrEmpty(text) && text.TrimStart().StartsWith(ContextGuard.GuardTag, StringComparison.Ordinal);
+
+        private static bool IsTrue(JsonElement root, string name) =>
+            root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;
+
+        /// <summary>
+        /// Context-guard banners, rebuilt the way the live session drew them: the save request opens
+        /// a run (its banner), the compaction boundary completes it, the resume request marks the task
+        /// as resumed. A run with no compaction after it stopped without one. Port of the same logic
+        /// in src/session/SessionStore.ts (parseTranscript).
+        /// </summary>
+        private sealed class GuardReplay
+        {
+            private readonly List<HistoryItem> _items;
+            private readonly Func<string> _newId;
+            // Each run's save request carries its own nonce; it dedupes a request recorded twice.
+            private readonly HashSet<string> _nonces = new HashSet<string>(StringComparer.Ordinal);
+            private HistoryItem _run;
+
+            public GuardReplay(List<HistoryItem> items, Func<string> newId)
+            {
+                _items = items;
+                _newId = newId;
+            }
+
+            /// <summary>Save → opens a run; resume → marks the completed run as resumed; retry → nothing.</summary>
+            public void Message(string text, JsonElement root)
+            {
+                if (Open(text, root)) return;
+                if (text.StartsWith(GuardResume, StringComparison.Ordinal) && _run?.Guard?.Phase == "done")
+                {
+                    _run.Guard.Resumed = true;
+                    _run = null;
+                }
+            }
+
+            public void Boundary(JsonElement root)
+            {
+                JsonElement meta = default;
+                var hasMeta = (root.TryGetProperty("compactMetadata", out meta) || root.TryGetProperty("compact_metadata", out meta))
+                              && meta.ValueKind == JsonValueKind.Object;
+                var pre = hasMeta ? (ReadLong(meta, "preTokens") ?? ReadLong(meta, "pre_tokens")) : null;
+                var post = hasMeta ? (ReadLong(meta, "postTokens") ?? ReadLong(meta, "post_tokens")) : null;
+                var duration = hasMeta ? (ReadDouble(meta, "durationMs") ?? ReadDouble(meta, "duration_ms")) : null;
+
+                _items.Add(new HistoryItem
+                {
+                    Kind = "notice",
+                    Id = "compact:h:" + (ReadString(root, "uuid") ?? _newId()),
+                    Text = string.Empty,
+                    Topic = "compact_boundary",
+                    Ts = ReadTimestamp(root),
+                    Compaction = new HistoryCompaction
+                    {
+                        Pre = pre,
+                        Post = post,
+                        Trigger = hasMeta ? ReadString(meta, "trigger") : null,
+                        DurationMs = duration,
+                    },
+                });
+
+                if (_run?.Guard != null)
+                {
+                    _run.Guard.Phase = "done";
+                    _run.Guard.Pre = pre;
+                    _run.Guard.Post = post;
+                }
+            }
+
+            /// <summary>A run left saving with no compaction after it ended without one.</summary>
+            public void Settle()
+            {
+                if (_run?.Guard != null && (_run.Guard.Phase == "saving" || _run.Guard.Phase == "retrying"))
+                {
+                    _run.Guard.Phase = "failed";
+                    _run.Guard.Reason = "no-compaction";
+                }
+                _run = null;
+            }
+
+            private bool Open(string text, JsonElement root)
+            {
+                var match = GuardSave.Match(text);
+                if (!match.Success) return false;
+
+                var nonce = GuardNonce.Match(text);
+                if (nonce.Success && !_nonces.Add(nonce.Groups[1].Value)) return true;
+
+                Settle();
+                _run = new HistoryItem
+                {
+                    Kind = "notice",
+                    Id = "guard:h:" + (ReadString(root, "uuid") ?? _newId()),
+                    Text = string.Empty,
+                    Topic = "context_guard",
+                    Ts = ReadTimestamp(root),
+                    Guard = new HistoryGuard
+                    {
+                        Phase = "saving",
+                        Pct = int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture),
+                        Threshold = int.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture),
+                    },
+                };
+                _items.Add(_run);
+                return true;
+            }
+
+            private static long? ReadLong(JsonElement parent, string name) =>
+                parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number &&
+                value.TryGetInt64(out var n) ? n : (long?)null;
+
+            private static double? ReadDouble(JsonElement parent, string name) =>
+                parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number &&
+                value.TryGetDouble(out var n) ? n : (double?)null;
+        }
+
+        private void ReplayUserLine(JsonElement root, List<HistoryItem> items, Dictionary<string, HistoryItem> toolIndex,
+                                    GuardReplay guard)
         {
             var content = MessageContent(root);
 
@@ -440,6 +602,14 @@ namespace Tootega.Cockpit.Session
                     if (block.TryGetProperty("is_error", out var isError))
                         tool.IsError = isError.ValueKind == JsonValueKind.True;
                 }
+            }
+
+            // The guard's own messages are not prompts: they become (or update) its banner.
+            var guardText = TextOfContent(content).Trim();
+            if (IsGuardText(guardText))
+            {
+                guard.Message(guardText, root);
+                return;
             }
 
             var images = CollectImages(content);

@@ -70,6 +70,19 @@ namespace Tootega.Cockpit.Session
     internal sealed class ContextGuard
     {
         public const string Sentinel = "COCKPIT-CONTEXT-SAVED";
+
+        /// <summary>
+        /// Opens every message the guard writes to the CLI. They are user messages in the transcript,
+        /// so reopening a session must recognise them by this tag (SessionStore.LoadTranscript) to
+        /// show the guard's banner instead of a prompt the user never typed.
+        ///
+        /// Deliberately NOT sent with isSynthetic: true, although CLI 2.1.332 asks hosts to mark
+        /// relayed mid-turn text that way: a marked message reaches the model wrapped as
+        /// "[MESSAGE FROM NON-USER SOURCE - NOT USER INPUT]", which would strip the guard of the
+        /// authority to pause the task. The guard acts for the user, who turned it on.
+        /// </summary>
+        public const string GuardTag = "[Cockpit context guard]";
+
         /// <summary>Extra fill before trying again after a failure.</summary>
         public const double RetryStep = 0.05;
         private const int MaxAttempts = 2; // the request + one stricter retry
@@ -77,11 +90,11 @@ namespace Tootega.Cockpit.Session
         public const string CompactCommand = "/compact Keep the saved state and the next steps of the paused task.";
 
         public const string ResumePrompt =
-            "[Cockpit context guard] The context was compacted. Resume the task you paused, starting " +
+            GuardTag + " The context was compacted. Resume the task you paused, starting " +
             "from the state you saved.";
 
         public static string SavePrompt(int pct, int threshold, string nonce) =>
-            $"[Cockpit context guard] The context window is {pct}% full (limit {threshold}%). " +
+            $"{GuardTag} The context window is {pct}% full (limit {threshold}%). " +
             "Pause the current task now and prepare for a context compaction:\n" +
             "1. Save everything needed to resume this work — what is done, what is in progress, what " +
             "comes next, decisions taken and open questions — following this repository's directives " +
@@ -92,7 +105,7 @@ namespace Tootega.Cockpit.Session
             $"{Sentinel} {nonce}";
 
         public static string RetryPrompt(string nonce) =>
-            "[Cockpit context guard] Your previous reply did not end with the required confirmation " +
+            GuardTag + " Your previous reply did not end with the required confirmation " +
             "line. If the state is not fully saved yet, save it first. Then end your reply with exactly " +
             "this line, alone, as the very last line:\n" +
             $"{Sentinel} {nonce}";
